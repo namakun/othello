@@ -36,16 +36,55 @@
   - [x] Add restart game option
   - [x] Display final results
   - [x] Add basic animations for piece placement/flipping
+  - [x] Improve pass turn visibility
+    - [x] Add clear pass message
+    - [x] Add visual feedback (red background)
+    - [x] Add animation effect
+    - [x] Add automatic turn switching
 
 ## Current Focus
-All basic features have been implemented. Testing the game functionality.
+All features have been implemented, including improved pass turn visibility.
+
+## Completed Features
+1. Basic Game Mechanics:
+   - 8x8 board with initial setup
+   - Valid move detection and display
+   - Piece placement and flipping
+   - Turn system with pass handling
+   - Score tracking
+   - Game end detection
+
+2. UI/UX Improvements:
+   - Responsive board layout
+   - Clear game status display
+   - Enhanced pass turn visibility
+   - Piece placement animations
+   - Restart game functionality
+
+## Bug Fixes
+1. Turn Skip Logic Issue:
+   - [x] Fixed incorrect turn skipping when one player has no valid moves
+   - [x] Corrected player turn order maintenance during pass situations
+   - [x] Improved pass message handling to accurately reflect game state
+   - [x] Fixed issue where player couldn't place pieces after opponent's pass
+
+2. Game End Message Issue:
+   - [x] Fixed overlapping pass and game end messages
+   - [x] Implemented proper game end detection without unnecessary pass messages
+   - [x] Enhanced game state transitions for better user experience
+
+3. Turn Management and Pass Message Fix:
+   - [x] Fixed double player switching issue
+   - [x] Corrected player turn handling after pass situations
+   - [x] Improved state management for valid moves after pass
+   - [x] Enhanced turn transition logic for better gameplay flow
+   - [x] Fixed pass message display timing
+   - [x] Corrected pass message to show the correct player being skipped
+   - [x] Synchronized pass message with actual game state
 
 ## Next Steps
-1. Test all game scenarios:
-   - Valid move placement
-   - Piece flipping
-   - Turn switching
-   - Pass handling
-   - Game end conditions
-   - Score calculation
-2. Add CPU player implementation (if required)
+1. Consider adding optional features:
+   - CPU player implementation
+   - Difficulty levels
+   - Move history
+   - Undo/redo functionality

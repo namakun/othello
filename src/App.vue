@@ -1,6 +1,6 @@
-ls<template>
+<template>
   <div class="app">
-    <h1>Othello Game</h1>
+    <h1>オセロゲーム</h1>
     <div class="game-container">
       <GameBoard />
     </div>

@@ -17,19 +17,24 @@
     <div class="game-info">
       <div class="score-board">
         <div class="score black-score">
-          Black: {{ blackScore }}
+          黒: {{ blackScore }}
         </div>
         <div class="score white-score">
-          White: {{ whiteScore }}
+          白: {{ whiteScore }}
         </div>
       </div>
-      <div class="current-player" v-if="!isGameOver">
-        Current Player: {{ currentPlayer === 'black' ? 'Black' : 'White' }}
+      <div class="status-message" :class="{ 'status-pass': showPassMessage }">
+        <div v-if="showPassMessage" class="pass-message">
+          {{ currentPlayer === 'black' ? '黒' : '白' }}の手番をスキップします
+        </div>
+        <div v-else-if="isGameOver" class="game-over">
+          ゲーム終了！ 勝者: {{ winner === 'Draw' ? '引き分け' : (winner === 'Black' ? '黒' : '白') }}
+        </div>
+        <div v-else class="current-player">
+          現在の手番: {{ currentPlayer === 'black' ? '黒' : '白' }}
+        </div>
       </div>
-      <div class="game-status" v-if="isGameOver">
-        Game Over! Winner: {{ winner }}
-      </div>
-      <button class="restart-button" @click="initializeBoard">Restart Game</button>
+      <button class="restart-button" @click="initializeBoard">ゲームをリセット</button>
     </div>
   </div>
 </template>
@@ -43,6 +48,7 @@ export default {
       currentPlayer: 'black',
       isGameOver: false,
       winner: null,
+      showPassMessage: false,
       directions: [
         [-1, -1], [-1, 0], [-1, 1],
         [0, -1],          [0, 1],
@@ -76,6 +82,7 @@ export default {
       this.currentPlayer = 'black'
       this.isGameOver = false
       this.winner = null
+      this.showPassMessage = false
     },
     countPieces(color) {
       return this.board.reduce((count, row) =>
@@ -124,6 +131,9 @@ export default {
         return
       }
 
+      // Reset pass message
+      this.showPassMessage = false
+
       // Place the piece
       this.board[row][col] = this.currentPlayer
 
@@ -134,17 +144,30 @@ export default {
         }
       })
 
-      // Switch player
+      // Switch to next player
       this.currentPlayer = this.currentPlayer === 'black' ? 'white' : 'black'
 
-      // Check if next player has valid moves
+      // Check if the next player has valid moves
       if (!this.hasValidMoves()) {
-        // Switch back to check if original player has moves
+        // Store the player who needs to pass
+        const passingPlayer = this.currentPlayer
+
+        // Switch back to previous player to check their moves
         this.currentPlayer = this.currentPlayer === 'black' ? 'white' : 'black'
 
         if (!this.hasValidMoves()) {
-          // Game is over if neither player has valid moves
+          // If neither player has moves, end the game
           this.endGame()
+        } else {
+          // Show pass message for the player who has no moves
+          this.showPassMessage = true
+          // Switch back to the passing player for correct message display
+          this.currentPlayer = passingPlayer
+          setTimeout(() => {
+            this.showPassMessage = false
+            // Switch to the player who has valid moves
+            this.currentPlayer = this.currentPlayer === 'black' ? 'white' : 'black'
+          }, 2000)
         }
       }
     },
@@ -252,11 +275,41 @@ export default {
   border-radius: 4px;
 }
 
-.current-player, .game-status {
-  padding: 5px;
-  background-color: rgba(255, 255, 255, 0.1);
+.status-message {
+  padding: 10px;
+  margin: 10px 0;
   border-radius: 4px;
-  margin-bottom: 10px;
+  background-color: rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+.status-pass {
+  background-color: #e74c3c;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.pass-message {
+  font-weight: bold;
+  color: #fff;
+}
+
+.game-over {
+  background-color: #f1c40f;
+  color: #2c3e50;
+  padding: 5px;
+  border-radius: 4px;
 }
 
 .restart-button {
@@ -268,6 +321,7 @@ export default {
   cursor: pointer;
   font-size: 1em;
   transition: background-color 0.3s;
+  margin-top: 10px;
 }
 
 .restart-button:hover {
