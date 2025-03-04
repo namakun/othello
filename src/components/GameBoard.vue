@@ -25,13 +25,13 @@
       </div>
       <div class="status-message" :class="{ 'status-pass': showPassMessage }">
         <div v-if="showPassMessage" class="pass-message">
-          {{ currentPlayer === 'black' ? '黒' : '白' }}の手番をスキップします
+          {{ activePlayer === 'black' ? '黒' : '白' }}の手番をスキップします
         </div>
         <div v-else-if="isGameOver" class="game-over">
           ゲーム終了！ 勝者: {{ winner === 'Draw' ? '引き分け' : (winner === 'Black' ? '黒' : '白') }}
         </div>
         <div v-else class="current-player">
-          現在の手番: {{ currentPlayer === 'black' ? '黒' : '白' }}
+          現在の手番: {{ activePlayer === 'black' ? '黒' : '白' }}
         </div>
       </div>
       <button class="restart-button" @click="initializeBoard">ゲームをリセット</button>
@@ -44,79 +44,128 @@ export default {
   name: 'GameBoard',
   data() {
     return {
+      // ゲームボード (8x8)
       board: Array(8).fill(null).map(() => Array(8).fill(null)),
-      currentPlayer: 'black',
-      isGameOver: false,
-      winner: null,
-      showPassMessage: false,
-      directions: [
-        [-1, -1], [-1, 0], [-1, 1],
-        [0, -1],          [0, 1],
-        [1, -1],  [1, 0],  [1, 1]
+
+      // プレイヤー状態
+      activePlayer: 'black', // 現在の手番 ('black' または 'white')
+      isGameOver: false,     // ゲーム終了フラグ
+      winner: null,          // 勝者 ('Black', 'White', または 'Draw')
+      showPassMessage: false, // パスメッセージ表示フラグ
+
+      // 8方向の移動ベクトル (上下左右、斜め)
+      moveDirections: [
+        [-1, -1], [-1, 0], [-1, 1], // 上方向
+        [0, -1],           [0, 1],  // 左右
+        [1, -1],  [1, 0],  [1, 1]   // 下方向
       ]
     }
   },
+
   computed: {
+    // 黒の駒の数
     blackScore() {
-      return this.countPieces('black')
+      return this.countPiecesByColor('black')
     },
+
+    // 白の駒の数
     whiteScore() {
-      return this.countPieces('white')
+      return this.countPiecesByColor('white')
     }
   },
+
   created() {
     this.initializeBoard()
   },
+
   methods: {
+    /**
+     * ゲームボードの初期化
+     */
     initializeBoard() {
-      // Reset board
+      // ボードをリセット
       this.board = Array(8).fill(null).map(() => Array(8).fill(null))
 
-      // Set initial pieces
+      // 初期配置（中央に4つの駒を配置）
       this.board[3][3] = 'white'
       this.board[3][4] = 'black'
       this.board[4][3] = 'black'
       this.board[4][4] = 'white'
 
-      // Reset game state
-      this.currentPlayer = 'black'
+      // ゲーム状態をリセット
+      this.activePlayer = 'black'
       this.isGameOver = false
       this.winner = null
       this.showPassMessage = false
     },
-    countPieces(color) {
+
+    /**
+     * 指定した色の駒の数を数える
+     * @param {string} color - 駒の色 ('black' または 'white')
+     * @return {number} - 駒の数
+     */
+    countPiecesByColor(color) {
       return this.board.reduce((count, row) =>
         count + row.filter(cell => cell === color).length, 0)
     },
+
+    /**
+     * 指定した位置に駒を置けるかどうかを判定
+     * @param {number} row - 行インデックス
+     * @param {number} col - 列インデックス
+     * @return {boolean} - 有効な手かどうか
+     */
     isValidMove(row, col) {
-      // Check if cell is empty
+      // セルが空でない場合は無効
       if (this.board[row][col] !== null) {
         return false
       }
 
-      // Check all directions for valid moves
-      return this.directions.some(([dx, dy]) => {
-        return this.isValidDirection(row, col, dx, dy)
+      // 全方向をチェックして、一つでも有効な方向があれば有効な手
+      return this.moveDirections.some(([dx, dy]) => {
+        return this.isValidDirectionForMove(row, col, dx, dy)
       })
     },
-    isValidDirection(row, col, dx, dy) {
-      let x = row + dx
-      let y = col + dy
+
+    /**
+     * 指定した方向に駒を裏返せるかどうかを判定
+     * @param {number} row - 行インデックス
+     * @param {number} col - 列インデックス
+     * @param {number} dx - 行方向の移動量
+     * @param {number} dy - 列方向の移動量
+     * @return {boolean} - 有効な方向かどうか
+     */
+    isValidDirectionForMove(row, col, dx, dy) {
+      let currentRow = row + dx
+      let currentCol = col + dy
       let hasOpponentPiece = false
 
-      // Check if the next position is within bounds and has opponent's piece
-      while (x >= 0 && x < 8 && y >= 0 && y < 8 && this.board[x][y] !== null) {
-        if (this.board[x][y] === this.currentPlayer) {
+      // ボード内で、かつ空でないセルがある間ループ
+      while (
+        currentRow >= 0 && currentRow < 8 &&
+        currentCol >= 0 && currentCol < 8 &&
+        this.board[currentRow][currentCol] !== null
+      ) {
+        // 自分の駒に到達したら、間に相手の駒があれば有効
+        if (this.board[currentRow][currentCol] === this.activePlayer) {
           return hasOpponentPiece
         }
+
+        // 相手の駒を見つけた
         hasOpponentPiece = true
-        x += dx
-        y += dy
+        currentRow += dx
+        currentCol += dy
       }
 
       return false
     },
-    hasValidMoves() {
+
+    /**
+     * 現在のプレイヤーが有効な手を持っているかどうかを判定
+     * @return {boolean} - 有効な手があるかどうか
+     */
+    hasAvailableMoves() {
+      // ボード全体をチェック
       for (let row = 0; row < 8; row++) {
         for (let col = 0; col < 8; col++) {
           if (this.isValidMove(row, col)) {
@@ -126,66 +175,124 @@ export default {
       }
       return false
     },
+
+    /**
+     * セルクリック時の処理
+     * @param {number} row - 行インデックス
+     * @param {number} col - 列インデックス
+     */
     handleCellClick(row, col) {
+      // ゲーム終了時または無効な手の場合は何もしない
       if (this.isGameOver || !this.isValidMove(row, col)) {
         return
       }
 
-      // Reset pass message
+      // パスメッセージをリセット
       this.showPassMessage = false
 
-      // Place the piece
-      this.board[row][col] = this.currentPlayer
+      // 駒を置く
+      this.placePiece(row, col)
 
-      // Flip pieces
-      this.directions.forEach(([dx, dy]) => {
-        if (this.isValidDirection(row, col, dx, dy)) {
-          this.flipPieces(row, col, dx, dy)
+      // 次のプレイヤーに切り替え
+      this.switchToNextPlayer()
+
+      // 次のプレイヤーの手番を処理
+      this.handleNextPlayerTurn()
+    },
+
+    /**
+     * 指定した位置に駒を置き、裏返す処理を行う
+     * @param {number} row - 行インデックス
+     * @param {number} col - 列インデックス
+     */
+    placePiece(row, col) {
+      // 駒を置く
+      this.board[row][col] = this.activePlayer
+
+      // 全方向をチェックして駒を裏返す
+      this.moveDirections.forEach(([dx, dy]) => {
+        if (this.isValidDirectionForMove(row, col, dx, dy)) {
+          this.flipPiecesInDirection(row, col, dx, dy)
         }
       })
+    },
 
-      // Switch to next player
-      this.currentPlayer = this.currentPlayer === 'black' ? 'white' : 'black'
+    /**
+     * 次のプレイヤーに切り替える
+     */
+    switchToNextPlayer() {
+      this.activePlayer = this.activePlayer === 'black' ? 'white' : 'black'
+    },
 
-      // Check if the next player has valid moves
-      if (!this.hasValidMoves()) {
-        // Store the player who needs to pass
-        const passingPlayer = this.currentPlayer
+    /**
+     * 次のプレイヤーの手番を処理
+     * パスや終了判定を行う
+     */
+    handleNextPlayerTurn() {
+      // 次のプレイヤーが有効な手を持っているかチェック
+      if (!this.hasAvailableMoves()) {
+        // パスが必要なプレイヤーを記録
+        const playerThatMustPass = this.activePlayer
 
-        // Switch back to previous player to check their moves
-        this.currentPlayer = this.currentPlayer === 'black' ? 'white' : 'black'
+        // 前のプレイヤーに一時的に戻して確認
+        this.switchToNextPlayer()
 
-        if (!this.hasValidMoves()) {
-          // If neither player has moves, end the game
+        // 前のプレイヤーも有効な手がない場合はゲーム終了
+        if (!this.hasAvailableMoves()) {
           this.endGame()
         } else {
-          // Show pass message for the player who has no moves
+          // パスメッセージを表示
           this.showPassMessage = true
-          // Switch back to the passing player for correct message display
-          this.currentPlayer = passingPlayer
+
+          // パスするプレイヤーに戻す（メッセージ表示用）
+          this.activePlayer = playerThatMustPass
+
+          // 2秒後にメッセージを消し、有効な手を持つプレイヤーに切り替え
           setTimeout(() => {
             this.showPassMessage = false
-            // Switch to the player who has valid moves
-            this.currentPlayer = this.currentPlayer === 'black' ? 'white' : 'black'
+            this.switchToNextPlayer()
           }, 2000)
         }
       }
     },
-    flipPieces(row, col, dx, dy) {
-      let x = row + dx
-      let y = col + dy
 
-      while (x >= 0 && x < 8 && y >= 0 && y < 8 && this.board[x][y] !== this.currentPlayer) {
-        if (this.board[x][y] === null) {
+    /**
+     * 指定した方向に駒を裏返す
+     * @param {number} row - 行インデックス
+     * @param {number} col - 列インデックス
+     * @param {number} dx - 行方向の移動量
+     * @param {number} dy - 列方向の移動量
+     */
+    flipPiecesInDirection(row, col, dx, dy) {
+      let currentRow = row + dx
+      let currentCol = col + dy
+
+      // 自分の駒に到達するまで相手の駒を裏返す
+      while (
+        currentRow >= 0 && currentRow < 8 &&
+        currentCol >= 0 && currentCol < 8 &&
+        this.board[currentRow][currentCol] !== this.activePlayer
+      ) {
+        // 空のセルに到達したら終了
+        if (this.board[currentRow][currentCol] === null) {
           return
         }
-        this.board[x][y] = this.currentPlayer
-        x += dx
-        y += dy
+
+        // 駒を裏返す
+        this.board[currentRow][currentCol] = this.activePlayer
+        currentRow += dx
+        currentCol += dy
       }
     },
+
+    /**
+     * ゲーム終了処理
+     * 勝者を決定する
+     */
     endGame() {
       this.isGameOver = true
+
+      // スコアを比較して勝者を決定
       if (this.blackScore > this.whiteScore) {
         this.winner = 'Black'
       } else if (this.whiteScore > this.blackScore) {

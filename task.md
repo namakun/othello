@@ -82,6 +82,19 @@ All features have been implemented, including improved pass turn visibility.
    - [x] Corrected pass message to show the correct player being skipped
    - [x] Synchronized pass message with actual game state
 
+## Code Improvements
+1. Code Readability Enhancements:
+   - [x] Improved variable naming for better clarity
+   - [x] Added comprehensive comments to explain code functionality
+   - [x] Restructured code with logical function separation
+   - [x] Enhanced overall code organization
+
+2. Refactoring:
+   - [x] Split complex functions into smaller, focused methods
+   - [x] Standardized naming conventions throughout the codebase
+   - [x] Improved parameter naming in functions
+   - [x] Added JSDoc style comments for better documentation
+
 ## Next Steps
 1. Consider adding optional features:
    - CPU player implementation
