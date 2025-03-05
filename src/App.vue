@@ -55,18 +55,32 @@ export default {
 .app {
   font-family: Arial, sans-serif;
   text-align: center;
-  margin: 20px;
+  padding: 20px;
   color: #333;
+  min-height: 100vh;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  background-color: #f5f6fa;
 }
 
 .game-container {
   display: flex;
   justify-content: center;
+  align-items: flex-start;
   margin-top: 20px;
+  flex: 1;
 }
 
 h1 {
   color: #333;
-  margin-bottom: 20px;
+  margin: 0 0 20px 0;
+  font-size: 2.5em;
+}
+
+/* ページ全体のリセット */
+body {
+  margin: 0;
+  padding: 0;
 }
 </style>

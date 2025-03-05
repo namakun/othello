@@ -81,12 +81,14 @@ export default {
 
 <style scoped>
 .mode-selection {
-  max-width: 800px;
+  width: 100%;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
   background-color: #2c3e50;
   border-radius: 8px;
   color: #ecf0f1;
+  box-sizing: border-box;
 }
 
 h2 {
@@ -97,21 +99,44 @@ h2 {
 
 .mode-options {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 20px;
-  margin-bottom: 30px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 15px;
+  margin-bottom: 50px;
+  min-height: 200px;
 }
 
 .mode-option {
   background-color: rgba(255, 255, 255, 0.1);
   border-radius: 8px;
-  padding: 20px;
+  padding: 15px;
   cursor: pointer;
   transition: all 0.3s ease;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
+  min-width: 200px;
+  height: 100%;
+  justify-content: center;
+}
+
+@media (max-width: 1200px) {
+  .mode-selection {
+    max-width: 95%;
+  }
+
+  .mode-option {
+    min-width: 150px;
+    padding: 10px;
+  }
+
+  .mode-name {
+    font-size: 1em !important;
+  }
+
+  .mode-description {
+    font-size: 0.8em !important;
+  }
 }
 
 .mode-option:hover {
@@ -143,7 +168,7 @@ h2 {
 .start-game-button {
   display: block;
   width: 200px;
-  margin: 0 auto;
+  margin: 20px auto 0;
   padding: 12px 20px;
   background-color: #27ae60;
   color: white;
