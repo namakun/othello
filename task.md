@@ -123,3 +123,20 @@ All features have been implemented, including mode selection and basic CPU playe
    - Move history
    - Undo/redo functionality
    - Game statistics tracking
+
+## Deployment
+- [x] GitHub Pages Setup
+   - [x] Configure vue.config.js for GitHub Pages
+   - [x] Create GitHub Actions workflow for automatic deployment
+   - [x] Add manual deployment script
+   
+### GitHub Pages Deployment Instructions
+1. **Automatic Deployment (Recommended)**:
+   - Push changes to the main branch
+   - GitHub Actions will automatically build and deploy to the gh-pages branch
+   - The game will be available at https://[username].github.io/othello/
+
+2. **Manual Deployment**:
+   - Update the repository URL in deploy.sh with your actual GitHub repository
+   - Run `./deploy.sh` to build and deploy manually
+   - The game will be available at https://[username].github.io/othello/
