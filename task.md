@@ -42,8 +42,21 @@
     - [x] Add animation effect
     - [x] Add automatic turn switching
 
+- [x] Mode Selection Implementation
+  - [x] Create mode selection screen component
+  - [x] Implement game mode options (Offline, CPU-Weak, CPU-Normal, CPU-Strong)
+  - [x] Add mode selection UI with visual feedback
+  - [x] Implement navigation between mode selection and game board
+  - [x] Pass selected mode to game board component
+  - [x] Display current mode in game board
+  - [x] Add "Return to Menu" button
+  - [x] Implement basic CPU player functionality
+    - [x] Add CPU move selection based on difficulty
+    - [x] Implement turn handling for CPU players
+    - [x] Add visual indication of CPU thinking
+
 ## Current Focus
-All features have been implemented, including improved pass turn visibility.
+All features have been implemented, including mode selection and basic CPU player functionality.
 
 ## Completed Features
 1. Basic Game Mechanics:
@@ -60,6 +73,15 @@ All features have been implemented, including improved pass turn visibility.
    - Enhanced pass turn visibility
    - Piece placement animations
    - Restart game functionality
+   - Mode selection screen
+   - Game mode display
+   - Return to menu functionality
+
+3. Game Modes:
+   - Offline match (human vs human)
+   - CPU opponent with three difficulty levels
+   - Basic CPU move selection (random moves)
+   - Visual indication of CPU thinking
 
 ## Bug Fixes
 1. Turn Skip Logic Issue:
@@ -97,7 +119,7 @@ All features have been implemented, including improved pass turn visibility.
 
 ## Next Steps
 1. Consider adding optional features:
-   - CPU player implementation
-   - Difficulty levels
+   - Improve CPU AI with more advanced algorithms
    - Move history
    - Undo/redo functionality
+   - Game statistics tracking

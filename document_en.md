@@ -15,6 +15,15 @@
   - **Winning Condition:** The player with the most pieces on the board wins.
   - **Result Display & Restart:** The game displays the outcome and provides an option to restart.
 
+## Mode Selection
+- **Top Page:**  
+  When accessing the site, a top page is shown that allows the user to select a game mode before the game screen is opened.
+- **Available Modes:**
+  - **Offline Match Mode:** Play against another local player.
+  - **CPU (Weak):** Play against a CPU opponent with a weak difficulty level.
+  - **CPU (Normal):** Play against a CPU opponent with a normal difficulty level.
+  - **CPU (Strong):** Play against a CPU opponent with a strong difficulty level.
+
 ## Technical Architecture
 
 ### Frontend

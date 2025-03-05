@@ -1,5 +1,11 @@
 <template>
   <div class="game-board">
+    <div class="game-header">
+      <div class="mode-info">
+        <span class="mode-label">モード:</span>
+        <span class="mode-value">{{ getModeName }}</span>
+      </div>
+    </div>
     <div class="board">
       <div v-for="row in 8" :key="row-1" class="board-row">
         <div v-for="col in 8" :key="col-1"
@@ -32,9 +38,13 @@
         </div>
         <div v-else class="current-player">
           現在の手番: {{ activePlayer === 'black' ? '黒' : '白' }}
+          <span v-if="isCpuMode && activePlayer === 'white'" class="cpu-thinking">(CPU思考中...)</span>
         </div>
       </div>
-      <button class="restart-button" @click="initializeBoard">ゲームをリセット</button>
+      <div class="button-container">
+        <button class="restart-button" @click="initializeBoard">ゲームをリセット</button>
+        <button class="menu-button" @click="returnToMenu">メニューに戻る</button>
+      </div>
     </div>
   </div>
 </template>
@@ -42,6 +52,12 @@
 <script>
 export default {
   name: 'GameBoard',
+  props: {
+    gameMode: {
+      type: String,
+      default: 'offline'
+    }
+  },
   data() {
     return {
       // ゲームボード (8x8)
@@ -52,6 +68,7 @@ export default {
       isGameOver: false,     // ゲーム終了フラグ
       winner: null,          // 勝者 ('Black', 'White', または 'Draw')
       showPassMessage: false, // パスメッセージ表示フラグ
+      isCpuThinking: false,   // CPU思考中フラグ
 
       // 8方向の移動ベクトル (上下左右、斜め)
       moveDirections: [
@@ -71,6 +88,36 @@ export default {
     // 白の駒の数
     whiteScore() {
       return this.countPiecesByColor('white')
+    },
+
+    // CPUモードかどうか
+    isCpuMode() {
+      return this.gameMode && this.gameMode.startsWith('cpu-')
+    },
+
+    // モード名の表示用テキスト
+    getModeName() {
+      switch(this.gameMode) {
+        case 'offline':
+          return 'オフラインマッチ'
+        case 'cpu-weak':
+          return 'CPU (弱)'
+        case 'cpu-normal':
+          return 'CPU (普通)'
+        case 'cpu-strong':
+          return 'CPU (強)'
+        default:
+          return 'オフラインマッチ'
+      }
+    }
+  },
+
+  watch: {
+    // アクティブプレイヤーが変わったときにCPUの手番を処理
+    activePlayer(newPlayer) {
+      if (this.isCpuMode && newPlayer === 'white' && !this.isGameOver) {
+        this.handleCpuTurn()
+      }
     }
   },
 
@@ -97,6 +144,13 @@ export default {
       this.isGameOver = false
       this.winner = null
       this.showPassMessage = false
+    },
+
+    /**
+     * メニューに戻る
+     */
+    returnToMenu() {
+      this.$emit('return-to-menu')
     },
 
     /**
@@ -184,6 +238,11 @@ export default {
     handleCellClick(row, col) {
       // ゲーム終了時または無効な手の場合は何もしない
       if (this.isGameOver || !this.isValidMove(row, col)) {
+        return
+      }
+
+      // CPUモードで白の手番の場合は何もしない
+      if (this.isCpuMode && this.activePlayer === 'white') {
         return
       }
 
@@ -300,6 +359,62 @@ export default {
       } else {
         this.winner = 'Draw'
       }
+    },
+
+    /**
+     * CPUの手番を処理する
+     * 難易度に応じた手を選択する
+     */
+    handleCpuTurn() {
+      // 少し遅延を入れてCPUの思考時間を演出
+      setTimeout(() => {
+        if (this.isGameOver || this.activePlayer !== 'white') {
+          return
+        }
+
+        // 有効な手を全て収集
+        const validMoves = []
+        for (let row = 0; row < 8; row++) {
+          for (let col = 0; col < 8; col++) {
+            if (this.isValidMove(row, col)) {
+              validMoves.push({ row, col })
+            }
+          }
+        }
+
+        if (validMoves.length === 0) {
+          return
+        }
+
+        let selectedMove
+
+        // 難易度に応じた手の選択
+        switch (this.gameMode) {
+          case 'cpu-weak':
+            // 弱いCPU: ランダムに手を選択
+            selectedMove = validMoves[Math.floor(Math.random() * validMoves.length)]
+            break
+
+          case 'cpu-normal':
+          case 'cpu-strong':
+            // 普通/強いCPU: 現時点では同じ実装（ランダム）
+            // 実際の対戦機能は未実装でよいとのこと
+            selectedMove = validMoves[Math.floor(Math.random() * validMoves.length)]
+            break
+
+          default:
+            selectedMove = validMoves[Math.floor(Math.random() * validMoves.length)]
+        }
+
+        // 選択した手を実行
+        this.placePiece(selectedMove.row, selectedMove.col)
+
+        // 次のプレイヤーに切り替え
+        this.switchToNextPlayer()
+
+        // 次のプレイヤーの手番を処理
+        this.handleNextPlayerTurn()
+      }, 1000) // 1秒の思考時間
     }
   }
 }
@@ -311,6 +426,30 @@ export default {
   padding: 10px;
   background-color: #2c3e50;
   border-radius: 8px;
+}
+
+.game-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  color: #ecf0f1;
+}
+
+.mode-info {
+  padding: 5px 10px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+.mode-label {
+  font-weight: bold;
+  margin-right: 5px;
+}
+
+.mode-value {
+  color: #3498db;
 }
 
 .board {
@@ -419,8 +558,14 @@ export default {
   border-radius: 4px;
 }
 
-.restart-button {
-  background-color: #3498db;
+.button-container {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.restart-button, .menu-button {
   color: white;
   border: none;
   padding: 8px 16px;
@@ -428,10 +573,33 @@ export default {
   cursor: pointer;
   font-size: 1em;
   transition: background-color 0.3s;
-  margin-top: 10px;
+}
+
+.restart-button {
+  background-color: #3498db;
 }
 
 .restart-button:hover {
   background-color: #2980b9;
+}
+
+.menu-button {
+  background-color: #95a5a6;
+}
+
+.menu-button:hover {
+  background-color: #7f8c8d;
+}
+
+.cpu-thinking {
+  font-size: 0.8em;
+  color: #f39c12;
+  margin-left: 5px;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 </style>
