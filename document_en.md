@@ -87,5 +87,29 @@
 ## Deployment Overview
 - **Frontend:**  
   Hosted on GitHub Pages, reducing the overhead of domain management.
-- **Backend:**  
+- **Backend:**
   Deployed as a serverless solution on AWS using Amazon API Gateway, AWS Lambda, Amazon DynamoDB, and CloudWatch Logs.
+
+## Testing Strategy
+- **Unit Testing:**
+  - Test individual components and game logic functions
+  - Use Jest as the testing framework
+  - Test coverage for core game mechanics:
+    - Board initialization
+    - Valid move detection
+    - Piece flipping logic
+    - Turn management
+    - Win condition checking
+    - CPU move generation
+
+- **Integration Testing:**
+  - Test component interactions
+  - Verify game flow and state management
+  - Test mode selection and game initialization
+  - Validate CPU difficulty levels
+
+- **End-to-End Testing:**
+  - Use Cypress for browser-based testing
+  - Test complete game scenarios
+  - Verify UI interactions and animations
+  - Test responsive design and layout

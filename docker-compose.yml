@@ -1,6 +1,8 @@
 services:
   frontend:
-    build: .
+    build:
+      context: .
+      target: development
     container_name: othello-frontend
     volumes:
       - .:/app
@@ -10,3 +12,15 @@ services:
     environment:
       - NODE_ENV=development
     command: npm run serve
+
+  test:
+    build:
+      context: .
+      target: test
+    container_name: othello-test
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=test
+    command: npm run test:unit
