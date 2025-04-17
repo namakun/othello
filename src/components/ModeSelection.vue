@@ -2,17 +2,19 @@
   <div class="mode-selection">
     <h2>ゲームモード選択</h2>
     <div class="mode-options">
-      <div
+      <button
         v-for="mode in GAME_MODES"
         :key="mode.id"
+        type="button"
         class="mode-option"
         :class="{ selected: selectedMode === mode.id }"
         @click="selectMode(mode.id)"
+        :aria-pressed="selectedMode === mode.id"
       >
         <div class="mode-icon">{{ mode.icon }}</div>
         <div class="mode-name">{{ mode.name }}</div>
         <div class="mode-description">{{ mode.description }}</div>
-      </div>
+      </button>
     </div>
 
     <ColorSelection
@@ -23,6 +25,7 @@
 
     <button
       class="start-game-button"
+      type="button"
       :disabled="!isValidSelection"
       @click="startGame"
     >
@@ -31,82 +34,37 @@
   </div>
 </template>
 
-<script>
-import { GAME_MODES } from '@/constants/gameConfig';
-import ColorSelection from './ColorSelection.vue';
+<script setup>
+import { ref, computed } from 'vue'
+import { GAME_MODES } from '@/constants/gameConfig'
+import ColorSelection from './ColorSelection.vue'
 
-export default {
-  name: "ModeSelection",
-  components: {
-    ColorSelection
-  },
-  data() {
-    return {
-      selectedMode: null,
-      playerColor: null,
-      GAME_MODES
-    };
-  },
-  computed: {
-    /**
-     * 選択されたモードがCPUモードかどうか
-     * @return {boolean} CPUモードかどうか
-     */
-    isCpuMode() {
-      return this.selectedMode && this.selectedMode.startsWith("cpu-");
-    },
+const emit = defineEmits(['mode-selected'])
+const selectedMode = ref(null)
+const playerColor = ref(null)
 
-    /**
-     * 現在の選択が有効かどうか
-     * @return {boolean} 選択が有効かどうか
-     */
-    isValidSelection() {
-      return this.selectedMode && (!this.isCpuMode || this.playerColor);
-    }
-  },
-  methods: {
-    /**
-     * モードを選択する
-     * @param {string} modeId - 選択されたモードのID
-     */
-    selectMode(modeId) {
-      this.selectedMode = modeId;
-      this.handleModeChange(modeId);
-    },
+const isCpuMode = computed(() => selectedMode.value?.startsWith('cpu-'))
+const isValidSelection = computed(() =>
+  selectedMode.value && (!isCpuMode.value || playerColor.value)
+)
 
-    /**
-     * モード変更時の処理
-     * @param {string} modeId - 選択されたモードのID
-     */
-    handleModeChange(modeId) {
-      if (modeId === "offline") {
-        this.playerColor = null;
-      } else if (!this.playerColor) {
-        this.playerColor = "black";
-      }
-    },
+function selectMode(modeId) {
+  selectedMode.value = modeId
+  if (modeId === 'offline') playerColor.value = null
+  else if (!playerColor.value) playerColor.value = 'black'
+}
 
-    /**
-     * プレイヤーの色を選択する
-     * @param {string} color - 選択された色（'black'または'white'）
-     */
-    selectColor(color) {
-      this.playerColor = color;
-    },
+function selectColor(color) {
+  playerColor.value = color
+}
 
-    /**
-     * 選択されたモードとプレイヤーの色でゲームを開始する
-     */
-    startGame() {
-      if (this.isValidSelection) {
-        this.$emit("mode-selected", {
-          mode: this.selectedMode,
-          playerColor: this.isCpuMode ? this.playerColor : null,
-        });
-      }
-    },
-  },
-};
+function startGame() {
+  if (!isValidSelection.value) return
+  emit('mode-selected', {
+    mode: selectedMode.value,
+    playerColor: isCpuMode.value ? playerColor.value : null
+  })
+}
 </script>
 
 <style scoped>

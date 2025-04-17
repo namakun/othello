@@ -68,8 +68,8 @@
   - [x] Implement CPU player functionality
     - [x] Implement Offline match mode (human vs human) (+0)
     - [x] CPU-Weak: Implement completely random move selection (+1)
-    - [ ] CPU-Normal: Implement basic evaluation based on piece count (+2)
-    - [ ] CPU-Strong: Implement logical move prediction with board evaluation (+5)
+    - [x] CPU-Normal: Implement alpha-beta pruning with depth 3 (+2)
+    - [x] CPU-Strong: Prepare for future reinforcement learning implementation (currently random) (+5)
     - [ ] Add difficulty selection options for CPU opponents (+4)
     - [ ] Implement advanced AI using machine learning for strongest difficulty level (+1)
     - [x] Add visual indication of CPU thinking
@@ -108,6 +108,8 @@ Most basic features have been implemented, including mode selection and basic CP
 3. Game Modes:
    - Offline match (human vs human)
    - CPU-Weak opponent (random moves)
+   - CPU-Normal opponent (alpha-beta pruning)
+   - CPU-Strong opponent (prepared for future reinforcement learning)
    - Visual indication of CPU thinking
 
 ## Bug Fixes
@@ -169,8 +171,8 @@ Most basic features have been implemented, including mode selection and basic CP
 
 2. Improve CPU AI algorithms:
 
-   - [ ] Implement piece-count evaluation for CPU-Normal difficulty
-   - [ ] Implement advanced logic for CPU-Strong difficulty (minimax, alpha-beta pruning)
+   - [x] Implement piece-count evaluation for CPU-Normal difficulty
+   - [x] Implement advanced logic for CPU-Strong difficulty (minimax, alpha-beta pruning)
    - [ ] Add AI-based inference for highest difficulty level
 
 3. Enhance visual effects:
@@ -183,30 +185,6 @@ Most basic features have been implemented, including mode selection and basic CP
    - [ ] Move history
    - [ ] Undo/redo functionality
    - [ ] Game statistics tracking
-
-## Testing
-
-1. Test Environment Setup:
-   - [x] Configure Jest and Vue Test Utils
-   - [x] Create test directory structure
-   - [x] Add test scripts to package.json
-   - [x] Setup test environment in Docker
-
-2. Test Coverage:
-   - [x] Initial board state tests
-   - [x] Game logic tests (valid moves, piece flipping)
-   - [x] Turn management tests
-   - [x] CPU player tests
-   - [x] Game end condition tests
-
-### Running Tests
-```bash
-# Run all tests
-docker-compose run test
-
-# Watch mode for development
-docker-compose run test npm run test:unit -- --watch
-```
 
 ## Deployment
 

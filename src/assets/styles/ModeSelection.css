@@ -9,32 +9,28 @@
   box-sizing: border-box;
 }
 
-h2 {
+/* 見出し */
+.mode-selection h2 {
   text-align: center;
   margin-bottom: 30px;
-  color: #ecf0f1;
+  color: #ffffff;
 }
 
-h3 {
-  text-align: center;
-  margin: 20px 0;
-  color: #ecf0f1;
-}
-
+/* モード一覧グリッド */
 .mode-options {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 15px;
   margin-bottom: 30px;
-  min-height: 200px;
 }
 
+/* 各モードボタン */
 .mode-option {
   background-color: rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   padding: 15px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: transform 0.3s ease, background-color 0.3s ease;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -44,122 +40,87 @@ h3 {
   justify-content: center;
 }
 
-.color-selection {
-  margin: 20px 0;
-  padding: 15px;
-  background-color: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-}
-
-.color-options {
-  display: flex;
-  justify-content: center;
-  gap: 50px;
-}
-
-.color-option {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  cursor: pointer;
-  padding: 15px;
-  border-radius: 8px;
-  transition: all 0.3s ease;
-}
-
-.color-option:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-}
-
-.color-option.selected {
-  background-color: #3498db;
-}
-
-.color-piece {
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  margin-bottom: 10px;
-}
-
-.color-piece.black {
-  background-color: #2c3e50;
-  border: 2px solid #34495e;
-}
-
-.color-piece.white {
-  background-color: #ecf0f1;
-  border: 2px solid #bdc3c7;
-}
-
-.color-label {
-  font-weight: bold;
-}
-
-@media (max-width: 1200px) {
-  .mode-selection {
-    max-width: 95%;
-  }
-
-  .mode-option {
-    min-width: 150px;
-    padding: 10px;
-  }
-
-  .mode-name {
-    font-size: 1em !important;
-  }
-
-  .mode-description {
-    font-size: 0.8em !important;
-  }
-}
-
+/* ホバー時 */
 .mode-option:hover {
   background-color: rgba(255, 255, 255, 0.2);
   transform: translateY(-5px);
 }
 
+/* 選択中 */
 .mode-option.selected {
   background-color: #3498db;
   box-shadow: 0 0 15px rgba(52, 152, 219, 0.5);
 }
 
+/* アイコン */
 .mode-icon {
   font-size: 2.5em;
   margin-bottom: 10px;
+  color: #ffffff;
 }
 
+/* モード名 */
 .mode-name {
   font-size: 1.2em;
   font-weight: bold;
   margin-bottom: 10px;
+  color: #ffffff;
 }
 
+/* 説明文 */
 .mode-description {
   font-size: 0.9em;
-  color: rgba(255, 255, 255, 0.8);
+  color: #ffffff;
 }
 
+/* スタートボタン */
 .start-game-button {
   display: block;
   width: 200px;
   margin: 20px auto 0;
   padding: 12px 20px;
   background-color: #27ae60;
-  color: white;
+  color: #ffffff;
   border: none;
   border-radius: 4px;
   font-size: 1.1em;
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition: background-color 0.3s ease;
 }
 
-.start-game-button:hover:not(:disabled) {
+.start-game-button:not(:disabled):hover {
   background-color: #2ecc71;
 }
 
 .start-game-button:disabled {
   background-color: #95a5a6;
   cursor: not-allowed;
+}
+
+/* レスポンシブ対応 */
+/* スマホ幅（<=600px）：1 列 */
+@media (max-width: 600px) {
+  .mode-options {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* タブレット幅（<=1024px）：2 列 */
+@media (max-width: 1024px) {
+  .mode-options {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* 中程度画面（<=1200px）：ボタン内フォント縮小など */
+@media (max-width: 1200px) {
+  .mode-option {
+    padding: 10px;
+  }
+  .mode-name {
+    font-size: 1em;
+  }
+  .mode-description {
+    font-size: 0.8em;
+  }
 }

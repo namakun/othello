@@ -1,3 +1,4 @@
+/* --- ゲームボード全体 --- */
 .game-board {
   display: inline-block;
   padding: 10px;
@@ -5,6 +6,7 @@
   border-radius: 8px;
 }
 
+/* --- ヘッダー --- */
 .game-header {
   display: flex;
   justify-content: space-between;
@@ -12,24 +14,21 @@
   margin-bottom: 10px;
   color: #ecf0f1;
 }
-
 .mode-info {
   padding: 5px 10px;
   background-color: rgba(255, 255, 255, 0.1);
   border-radius: 4px;
   font-size: 0.9em;
 }
-
 .mode-label {
   font-weight: bold;
   margin-right: 5px;
 }
-
 .mode-value {
   color: #3498db;
 }
 
-/* プレイヤー情報スタイル */
+/* --- プレイヤー情報 --- */
 .player-info {
   display: flex;
   justify-content: center;
@@ -40,14 +39,8 @@
   border-radius: 8px;
   color: #ecf0f1;
 }
-
-.player-info.opponent {
-  margin-bottom: 15px;
-}
-
-.player-info.current-player {
-  margin-top: 15px;
-}
+.player-info.opponent { margin-bottom: 15px; }
+.player-info.current-player { margin-top: 15px; }
 
 .player-piece {
   display: flex;
@@ -60,12 +53,10 @@
   margin-right: 20px;
   background-color: rgba(255, 255, 255, 0.1);
 }
-
 .player-piece .piece {
   width: 25px;
   height: 25px;
 }
-
 .player-piece.active {
   background-color: rgba(52, 152, 219, 0.5);
   box-shadow: 0 0 10px rgba(52, 152, 219, 0.7);
@@ -77,26 +68,21 @@
   font-weight: bold;
 }
 
+/* --- ボード --- */
 .board {
   background-color: #2c3e50;
   padding: 8px;
   transition: transform 0.5s ease;
 }
-
-/* オフラインモードでプレイヤーが白の場合、ボードを180度回転 */
 .board.flipped {
   transform: rotate(180deg);
 }
-
-/* ボードが反転している場合、セル内の駒も180度回転して元に戻す */
 .board.flipped .board-cell * {
   transform: rotate(180deg);
 }
+.board-row { display: flex; }
 
-.board-row {
-  display: flex;
-}
-
+/* --- セル --- */
 .board-cell {
   width: 50px;
   height: 50px;
@@ -108,11 +94,11 @@
   cursor: pointer;
   position: relative;
 }
-
 .board-cell:hover {
   background-color: #2ecc71;
 }
 
+/* --- 駒 --- */
 .piece {
   width: 40px;
   height: 40px;
@@ -121,27 +107,23 @@
   backface-visibility: hidden;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
-
 .piece-black {
   background-color: #2c3e50;
   border: 2px solid #34495e;
 }
-
 .piece-white {
   background-color: #ecf0f1;
   border: 2px solid #bdc3c7;
 }
 
-/* 黒から白へのアニメーション */
+/* --- フリップアニメーション --- */
 .flipping-to-white {
-  animation: flip-to-white 0.5s cubic-bezier(0.4, 0.0, 0.6, 1) forwards;
+  animation: flip-to-white 0.5s cubic-bezier(0.4, 0, 0.6, 1) forwards;
   background-color: #2c3e50;
   border: 2px solid #34495e;
 }
-
-/* 白から黒へのアニメーション */
 .flipping-to-black {
-  animation: flip-to-black 0.5s cubic-bezier(0.4, 0.0, 0.6, 1) forwards;
+  animation: flip-to-black 0.5s cubic-bezier(0.4, 0, 0.6, 1) forwards;
   background-color: #ecf0f1;
   border: 2px solid #bdc3c7;
 }
@@ -192,6 +174,7 @@
   }
 }
 
+/* --- 有効手インジケーター --- */
 .valid-move-indicator {
   position: absolute;
   width: 16px;
@@ -200,13 +183,13 @@
   background-color: rgba(255, 255, 255, 0.3);
 }
 
+/* --- ゲーム情報 --- */
 .game-info {
   margin-top: 10px;
   text-align: center;
   color: #ecf0f1;
   font-size: 1.2em;
 }
-
 .status-message {
   padding: 10px;
   margin: 10px 0;
@@ -214,7 +197,6 @@
   background-color: rgba(255, 255, 255, 0.1);
   transition: all 0.3s ease;
 }
-
 .status-pass {
   background-color: #e74c3c;
   animation: pulse 1s infinite;
@@ -244,11 +226,7 @@
   }
 }
 
-.pass-message {
-  font-weight: bold;
-  color: #fff;
-}
-
+.pass-message { font-weight: bold; color: #fff; }
 .game-over {
   background-color: #f1c40f;
   color: #2c3e50;
@@ -256,13 +234,13 @@
   border-radius: 4px;
 }
 
+/* --- ボタンコンテナ --- */
 .button-container {
   display: flex;
   justify-content: center;
   gap: 10px;
   margin-top: 10px;
 }
-
 .restart-button,
 .menu-button {
   color: white;
@@ -271,25 +249,22 @@
   border-radius: 4px;
   cursor: pointer;
   font-size: 1em;
-  transition: background-color 0.3s;
+  transition: background-color 0.3s ease;
 }
-
 .restart-button {
   background-color: #3498db;
 }
-
 .restart-button:hover {
   background-color: #2980b9;
 }
-
 .menu-button {
   background-color: #95a5a6;
 }
-
 .menu-button:hover {
   background-color: #7f8c8d;
 }
 
+/* --- CPU思考中 --- */
 .cpu-thinking {
   font-size: 0.8em;
   color: #f39c12;
@@ -305,4 +280,67 @@
   50% {
     opacity: 0.5;
   }
+}
+
+/* --- 色選択ダイアログ --- */
+.color-selection-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(255, 255, 255, 0.9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+/* ダイアログ本体 */
+.color-selection-overlay .color-selection {
+  /* ColorSelection.css と同じ背景に */
+  background-color: rgba(60, 70, 90, 0.75);
+  border-radius: 8px;
+  padding: 15px;
+}
+
+/* 中のオプション群 */
+.color-selection-overlay .color-selection .color-options {
+  display: flex;
+  justify-content: center;
+  gap: 50px;
+  margin: 20px 0;
+}
+
+/* 各選択ボタン */
+.color-selection-overlay .color-selection .color-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  padding: 15px;
+  border-radius: 8px;
+  background-color: transparent;
+  transition: background-color 0.3s ease;
+}
+
+/* ホバーでほんのり白 */
+.color-selection-overlay .color-selection .color-option:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* 選択時は青 */
+.color-selection-overlay .color-selection .color-option.selected {
+  background-color: #3498db;
+}
+
+/* 駒アイコン */
+.color-selection-overlay .color-selection .color-piece {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  margin-bottom: 10px;
+}
+
+/* ラベル */
+.color-selection-overlay .color-selection .color-label {
+  font-weight: bold;
+  color: #ecf0f1;
 }

@@ -15,6 +15,19 @@ const fromBigInt = (bigNum) => hasBigInt ? Number(bigNum) : bigNum;
 // 定数
 const ZERO_BIG = hasBigInt ? BigInt(0) : 0;
 const ONE_BIG = hasBigInt ? BigInt(1) : 1;
+
+// 方向の定義
+const DIRECTIONS = {
+  NORTHWEST: -9,  // 左上
+  NORTH: -8,      // 上
+  NORTHEAST: -7,  // 右上
+  WEST: -1,       // 左
+  EAST: 1,        // 右
+  SOUTHWEST: 7,   // 左下
+  SOUTH: 8,       // 下
+  SOUTHEAST: 9    // 右下
+};
+
 export class BitBoard {
   constructor() {
     // 初期状態の設定
@@ -56,42 +69,66 @@ export class BitBoard {
   }
 
   /**
+   * 指定した位置が盤面内かつ、指定した方向に移動可能かチェック
+   * @param {number} row - 現在の行
+   * @param {number} col - 現在の列
+   * @param {number} dir - 方向
+   * @returns {boolean} 移動可能かどうか
+   */
+  canMoveInDirection(row, col, dir) {
+    const rowDelta = Math.floor(dir / 8);
+    const colDelta = dir % 8;
+    const nextRow = row + rowDelta;
+    const nextCol = col + colDelta;
+    return nextRow >= 0 && nextRow < 8 && nextCol >= 0 && nextCol < 8;
+  }
+
+  /**
    * 指定した位置に駒を置けるかチェック
    * @param {number} row - 行（0-7）
    * @param {number} col - 列（0-7）
-   * @param {boolean} isBlack - 黒の手番かどうか
+   * @param {string} player - 駒を置くプレイヤーの色 ("black" または "white")
    * @returns {boolean} 置けるかどうか
    */
-  isValidMove(row, col, isBlack) {
+  isValidMove(row, col, player) {
+    // 盤面外チェック
+    if (row < 0 || row >= 8 || col < 0 || col >= 8) {
+      return false;
+    }
+
     const pos = toBigInt(row * 8 + col);
     const mask = toBigInt(1) << pos;
 
     // 既に駒がある場所には置けない
-    if (((this.blackBoard | this.whiteBoard) & mask) !== ZERO_BIG) return false;
+    if (((this.blackBoard | this.whiteBoard) & mask) !== ZERO_BIG) {
+      return false;
+    }
 
-    // 8方向の差分
-    const directions = [
-      toBigInt(-9), toBigInt(-8), toBigInt(-7),  // 上方向
-      toBigInt(-1),      toBigInt(1),   // 左右
-      toBigInt(7),  toBigInt(8),  toBigInt(9)   // 下方向
-    ];
-
+    const isBlack = (player === "black");
     const myBoard = isBlack ? this.blackBoard : this.whiteBoard;
     const oppBoard = isBlack ? this.whiteBoard : this.blackBoard;
 
     // 各方向をチェック
-    for (const dir of directions) {
-      let current = pos + dir;
+    for (const dir of Object.values(DIRECTIONS)) {
+      if (!this.canMoveInDirection(row, col, dir)) {
+        continue;
+      }
+
+      let current = pos + toBigInt(dir);
       let hasOpp = false;
 
       // ボード内で、かつ隣が相手の駒である限り続ける
-      while (this.isValidPosition(current) && ((oppBoard & (ONE_BIG << current)) !== ZERO_BIG)) {
+      while (this.isValidPosition(current) &&
+             this.canMoveInDirection(fromBigInt(current / toBigInt(8)), fromBigInt(current % toBigInt(8)), dir) &&
+             ((oppBoard & (ONE_BIG << current)) !== ZERO_BIG)) {
         hasOpp = true;
-        current += dir;
+        current += toBigInt(dir);
       }
 
       // 最後に自分の駒があり、途中に相手の駒があれば有効な手
-      if (hasOpp && this.isValidPosition(current) && ((myBoard & (ONE_BIG << current)) !== ZERO_BIG)) {
+      if (hasOpp &&
+          this.isValidPosition(current) &&
+          ((myBoard & (ONE_BIG << current)) !== ZERO_BIG)) {
         return true;
       }
     }
@@ -105,33 +142,31 @@ export class BitBoard {
    * @returns {boolean} 盤面内かどうか
    */
   isValidPosition(pos) {
-    return pos >= toBigInt(0) && pos < toBigInt(64);
+    return pos >= 0 && pos < 64;
   }
 
   /**
    * 駒を置いて反転処理を行う
    * @param {number} row - 行（0-7）
    * @param {number} col - 列（0-7）
-   * @param {boolean} isBlack - 黒の手番かどうか
+   * @param {string} player - 駒を置くプレイヤーの色 ("black" または "white")
    * @returns {Array} 反転した駒の位置の配列 [{row, col}]
    */
-  placePiece(row, col, isBlack) {
+  placePiece(row, col, player) {
+    // 有効な手かチェック
+    if (!this.isValidMove(row, col, player)) {
+      return [];
+    }
+
     const pos = toBigInt(row * 8 + col);
     const mask = toBigInt(1) << pos;
     const flipped = [];
 
-    // 既に駒がある場所には置けない
-    if (((this.blackBoard | this.whiteBoard) & mask) !== ZERO_BIG) return flipped;
-
-    const directions = [
-      toBigInt(-9), toBigInt(-8), toBigInt(-7),
-      toBigInt(-1), toBigInt(1),
-      toBigInt(7), toBigInt(8), toBigInt(9)
-    ];
+    const isBlack = (player === "black");
     const myBoard = isBlack ? this.blackBoard : this.whiteBoard;
     const oppBoard = isBlack ? this.whiteBoard : this.blackBoard;
 
-    // 置く位置を自分の色に
+    // 置く位置を自分の色にする
     if (isBlack) {
       this.blackBoard |= mask;
     } else {
@@ -139,21 +174,28 @@ export class BitBoard {
     }
 
     // 各方向をチェック
-    for (const dir of directions) {
-      let current = pos + dir;
+    for (const dir of Object.values(DIRECTIONS)) {
+      if (!this.canMoveInDirection(row, col, dir)) {
+        continue;
+      }
+
+      let current = pos + toBigInt(dir);
       const tempFlipped = [];
 
       // ボード内で、かつ隣が相手の駒である限り続ける
-      while (this.isValidPosition(current) && ((oppBoard & (ONE_BIG << current)) !== ZERO_BIG)) {
+      while (this.isValidPosition(current) &&
+             this.canMoveInDirection(fromBigInt(current / toBigInt(8)), fromBigInt(current % toBigInt(8)), dir) &&
+             ((oppBoard & (ONE_BIG << current)) !== ZERO_BIG)) {
         tempFlipped.push({
           row: fromBigInt(current / toBigInt(8)),
           col: fromBigInt(current % toBigInt(8))
         });
-        current += dir;
+        current += toBigInt(dir);
       }
 
       // 最後に自分の駒があれば反転確定
-      if (this.isValidPosition(current) && ((myBoard & (ONE_BIG << current)) !== ZERO_BIG)) {
+      if (this.isValidPosition(current) &&
+          ((myBoard & (ONE_BIG << current)) !== ZERO_BIG)) {
         for (const flip of tempFlipped) {
           const flipPos = toBigInt(flip.row * 8 + flip.col);
           const flipMask = toBigInt(1) << flipPos;
@@ -175,13 +217,13 @@ export class BitBoard {
 
   /**
    * 有効な手があるかチェック
-   * @param {boolean} isBlack - 黒の手番かどうか
+   * @param {string} player - 駒を置くプレイヤーの色 ("black" または "white")
    * @returns {boolean} 有効な手があるかどうか
    */
-  hasValidMoves(isBlack) {
+  hasValidMoves(player) {
     for (let row = 0; row < 8; row++) {
       for (let col = 0; col < 8; col++) {
-        if (this.isValidMove(row, col, isBlack)) {
+        if (this.isValidMove(row, col, player)) {
           return true;
         }
       }
@@ -211,18 +253,13 @@ export class BitBoard {
   }
 
   /**
-   * 現在の盤面状態を2次元配列で取得
-   * @returns {Array<Array<string|null>>} 盤面状態
+   * ボードの状態をクローン
+   * @returns {BitBoard} 新しいBitBoardインスタンス
    */
-  getBoard() {
-    const board = Array(8).fill(null).map(() => Array(8).fill(null));
-
-    for (let row = 0; row < 8; row++) {
-      for (let col = 0; col < 8; col++) {
-        board[row][col] = this.getPiece(row, col);
-      }
-    }
-
-    return board;
+  clone() {
+    const newBoard = new BitBoard();
+    newBoard.blackBoard = this.blackBoard;
+    newBoard.whiteBoard = this.whiteBoard;
+    return newBoard;
   }
 }

@@ -2,37 +2,39 @@
   <div class="color-selection">
     <h3>プレイヤーの色を選択</h3>
     <div class="color-options">
-      <div
+      <button
+        type="button"
         class="color-option"
-        :class="{ selected: selectedColor === 'black' }"
-        @click="$emit('color-selected', 'black')"
+        :class="{ selected: props.selectedColor === 'black' }"
+        @click="emit('color-selected','black')"
+        :aria-pressed="props.selectedColor === 'black'"
       >
         <div class="color-piece black"></div>
         <div class="color-label">黒（先攻）</div>
-      </div>
-      <div
+      </button>
+      <button
+        type="button"
         class="color-option"
-        :class="{ selected: selectedColor === 'white' }"
-        @click="$emit('color-selected', 'white')"
+        :class="{ selected: props.selectedColor === 'white' }"
+        @click="emit('color-selected','white')"
+        :aria-pressed="props.selectedColor === 'white'"
       >
         <div class="color-piece white"></div>
         <div class="color-label">白（後攻）</div>
-      </div>
+      </button>
     </div>
   </div>
 </template>
 
-<script>
-export default {
-  name: "ColorSelection",
-  props: {
-    selectedColor: {
-      type: String,
-      required: true,
-      validator: value => ["black", "white", null].includes(value)
-    }
+<script setup>
+const props = defineProps({
+  selectedColor: {
+    type: String,
+    default: null,
+    validator: v => v === null || ['black','white'].includes(v)
   }
-};
+})
+const emit = defineEmits(['color-selected'])
 </script>
 
 <style scoped>
