@@ -26,7 +26,7 @@ export class AlphaBetaCPU extends BaseCPU {
       let bestMove = validMoves[0];
 
       // 探索深度を盤面の状況に応じて調整
-      const depth = totalPieces >= 50 ? 4 : 2;
+      const depth = totalPieces >= 40 ? 6 : 3;
 
       for (const move of validMoves) {
         const tempBoard = this.bitBoard.clone();
