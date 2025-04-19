@@ -1,67 +1,93 @@
-/**
- * GameState – ゲーム進行管理
- */
+// File: src/utils/game/GameState.js
+import { BitBoard }         from "@/utils/BitBoard";
+import { AnimationManager } from "@/utils/game/AnimationManager";
+import { CPUManager }       from "@/utils/game/CPUManager";
 
 export class GameState {
   constructor(gameMode, playerColor, bitBoard, animationManager, cpuManager) {
-    this.gameMode = gameMode;
-    this.playerColor = playerColor || "black";
-    this.activePlayer = "black";
-    this.isGameOver = false;
-    this.winner = null;
-    this.showPassMessage = false;
-    this.isCpuThinking = false;
-    this.bitBoard = bitBoard;
+    this.gameMode         = gameMode;
+    this.playerColor      = playerColor;
+    this.activePlayer     = "black";
+    this.isGameOver       = false;
+    this.winner           = null;
+    this.showPassMessage  = false;
+    this.isCpuThinking    = false;
+    this.bitBoard         = bitBoard;
     this.animationManager = animationManager;
-    this.cpuManager = cpuManager;
+    this.cpuManager       = cpuManager;
   }
 
-  /* ---------- モード判定 ---------- */
   isCpuMode() {
-    return this.gameMode && this.gameMode.startsWith("cpu-");
+    return this.gameMode.startsWith("cpu-");
+  }
+  isCpuTurn(pc) {
+    return this.isCpuMode() && this.activePlayer !== pc;
   }
 
-  isCpuTurn(playerColorInGame) {
-    return this.isCpuMode() && this.activePlayer !== playerColorInGame;
+  isValidMove(r, c) {
+    return this.bitBoard.isValidMove(r, c, this.activePlayer);
   }
 
-  isValidMove(row, col) {
-    return this.bitBoard.isValidMove(row, col, this.activePlayer);
+  /** 石を置いて反転アニメーションを実行 */
+  async placePiece(row, col) {
+    if (!this.bitBoard.isValidMove(row, col, this.activePlayer)) return;
+
+    // 1) 新駒だけ即時反映
+    const oldPlayer = this.activePlayer === "black" ? "white" : "black";
+    this.bitBoard.setPiece(row, col, this.activePlayer);
+    this.animationManager.setLastPlacedPiece(row, col);
+
+    // 2) 方向ごとに反転すべき駒をグループ取得
+    const flipGroups = this.bitBoard.getFlipsByDirection(
+      row,
+      col,
+      this.activePlayer
+    );
+
+    // 3) アニメ開始 & 完了コールバックで flipPiece → カウント
+    const totalFlips = flipGroups.reduce((sum, g) => sum + g.length, 0);
+    await new Promise((resolve) => {
+      let done = 0;
+      this.animationManager.startFlippingAnimation(
+        flipGroups,
+        oldPlayer,
+        this.activePlayer,
+        (piece) => {
+          // 各コマ反転完了時にボードを更新
+          this.bitBoard.flipPiece(piece.row, piece.col, this.activePlayer);
+          // カウントアップ
+          done += 1;
+          // 最後のコールバックが来たら即座に次へ
+          if (done >= totalFlips) {
+            resolve();
+          }
+        }
+      );
+    });
+
+    // 4) 次手番へ
+    await this.switchToNextPlayer();
   }
 
-  getModeName() {
-    const map = {
-      offline: "オフラインマッチ",
-      "cpu-weak": "CPU (弱)",
-      "cpu-normal": "CPU (普通)",
-      "cpu-strong": "CPU (強)",
-    };
-    return map[this.gameMode] || "オフラインマッチ";
-  }
+  /* ─── 以下は既存のまま ──────────────────────────────────────────── */
 
-  /* ---------- 手番交替 ---------- */
   async switchToNextPlayer() {
     const next = this.activePlayer === "black" ? "white" : "black";
 
     if (this.bitBoard.hasValidMoves(next)) {
-      /* 普通に交替 */
       this.activePlayer = next;
     } else if (this.bitBoard.hasValidMoves(this.activePlayer)) {
-      /* 相手だけ打てない → パス */
-      await this.handlePass(next); // ← 変更
-      // 手番はそのまま
+      await this.handlePass(next);
     } else {
-      /* 双方打てない → 終了 */
       this.endGame();
       return;
     }
 
-    /* CPU なら自動着手 */
     if (this.isCpuTurn(this.playerColor)) {
       await this.handleCpuTurn();
     }
   }
-  /* ---------- パス処理 ---------- */
+
   async handlePass(skippedPlayer) {
     const keep = this.activePlayer;
     this.activePlayer = skippedPlayer;
@@ -70,10 +96,9 @@ export class GameState {
     await new Promise((r) => setTimeout(r, 2000));
     this.showPassMessage = false;
 
-    this.activePlayer = keep; // 元に戻す
+    this.activePlayer = keep;
   }
 
-  /* ---------- CPU 手番 ---------- */
   async handleCpuTurn() {
     try {
       this.isCpuThinking = true;
@@ -82,45 +107,27 @@ export class GameState {
         await this.placePiece(move.row, move.col);
       }
     } catch (e) {
-      /* eslint-disable no-console */
       console.error("CPU turn error:", e);
     } finally {
       this.isCpuThinking = false;
     }
   }
 
-  /* ---------- 石を置く ---------- */
-  async placePiece(row, col) {
-    if (!this.bitBoard.isValidMove(row, col, this.activePlayer)) return;
-
-    this.animationManager.setLastPlacedPiece(row, col);
-    const flipped = this.bitBoard.placePiece(row, col, this.activePlayer);
-
-    // アニメーション
-    this.animationManager.startFlippingAnimation(flipped, this.activePlayer === "black" ? "white" : "black", this.activePlayer);
-
-    await new Promise((r) => setTimeout(r, 500));
-    await this.switchToNextPlayer();
-  }
-
-  /* ---------- ゲーム終了判定 ---------- */
   endGame() {
     this.isGameOver = true;
     const { black, white } = this.bitBoard.getScore();
     this.winner = black > white ? "Black" : white > black ? "White" : "Draw";
   }
 
-  /* ---------- 盤面合法手ヘルパ ---------- */
   hasAvailableMoves() {
     return this.bitBoard.hasValidMoves(this.activePlayer);
   }
 
-  /* ---------- リセット ---------- */
   reset() {
-    this.activePlayer = "black";
-    this.isGameOver = false;
-    this.winner = null;
+    this.activePlayer    = "black";
+    this.isGameOver      = false;
+    this.winner          = null;
     this.showPassMessage = false;
-    this.isCpuThinking = false;
+    this.isCpuThinking   = false;
   }
 }

@@ -1,6 +1,4 @@
-/**
- * ゲームのアニメーション状態を管理するクラス
- */
+// File: src/utils/game/AnimationManager.js
 export class AnimationManager {
   constructor() {
     this.flippingPieces = [];
@@ -9,89 +7,42 @@ export class AnimationManager {
 
   /**
    * 駒の反転アニメーションを開始
-   * @param {Array<{row: number, col: number}>} pieces - 反転する駒のリスト
-   * @param {string} fromColor - 反転前の色
-   * @param {string} toColor - 反転後の色
-   * @param {Function} onAnimationComplete - アニメーション完了時のコールバック
+   * @param {Array<Array<{row:number, col:number}>>} flipGroups
+   * @param {string} fromColor
+   * @param {string} toColor
+   * @param {(piece:{row, col})=>void} onComplete
    */
-  startFlippingAnimation(pieces, fromColor, toColor, onAnimationComplete) {
-    pieces.forEach(piece => {
-      this.flippingPieces.push({
-        row: piece.row,
-        col: piece.col,
-        fromColor,
-        toColor
-      });
+  startFlippingAnimation(flipGroups, fromColor, toColor, onComplete) {
+    flipGroups.forEach((group) => {
+      group.forEach((p, idx) => {
+        const delay = idx * 100;
+        setTimeout(() => {
+          // アニメーション用クラスを追加
+          this.flippingPieces.push({ row: p.row, col: p.col, fromColor, toColor });
+        }, delay);
 
-      // アニメーション終了後に反転フラグをクリア
-      setTimeout(() => {
-        this.flippingPieces = this.flippingPieces.filter(
-          p => !(p.row === piece.row && p.col === piece.col)
-        );
-        if (onAnimationComplete) {
-          onAnimationComplete(piece);
-        }
-      }, 500 + this.getPieceAnimationDelayValue(piece.row, piece.col));
+        setTimeout(() => {
+          // アニメクラスを削除
+          this.flippingPieces = this.flippingPieces.filter((x) => !(x.row === p.row && x.col === p.col));
+          // ボード反転（ここで確実に flipPiece を呼ぶ）
+          if (onComplete) onComplete(p);
+        }, delay + 500);
+      });
     });
   }
 
-  /**
-   * 最後に置いた駒の位置を設定
-   * @param {number} row - 行インデックス
-   * @param {number} col - 列インデックス
-   */
   setLastPlacedPiece(row, col) {
     this.lastPlacedPiece = { row, col };
   }
 
-  /**
-   * 駒が反転中かどうかを判定
-   * @param {number} row - 行インデックス
-   * @param {number} col - 列インデックス
-   * @returns {boolean} 反転中かどうか
-   */
   isPieceFlipping(row, col) {
-    return this.flippingPieces && this.flippingPieces.some(
-      p => p.row === row && p.col === col
-    );
+    return this.flippingPieces.some((p) => p.row === row && p.col === col);
   }
 
-  /**
-   * 駒のアニメーション遅延時間の数値を取得
-   * @param {number} row - 行インデックス
-   * @param {number} col - 列インデックス
-   * @returns {number} 遅延時間 (ms)
-   */
-  getPieceAnimationDelayValue(row, col) {
-    if (!this.lastPlacedPiece) {
-      return 0;
-    }
-
-    // 最後に置いた駒からのマンハッタン距離を計算
-    const distance = Math.abs(row - this.lastPlacedPiece.row) +
-                    Math.abs(col - this.lastPlacedPiece.col);
-
-    // 距離に基づいて遅延時間を計算（80msごとに増加）
-    return distance * 80;
+  getFlippingPiece(row, col) {
+    return this.flippingPieces.find((p) => p.row === row && p.col === col);
   }
 
-  /**
-   * 駒のアニメーション遅延時間を計算（CSS用）
-   * @param {number} row - 行インデックス
-   * @param {number} col - 列インデックス
-   * @returns {string} CSS用アニメーション遅延時間
-   */
-  getPieceAnimationDelay(row, col) {
-    if (!this.lastPlacedPiece || !this.isPieceFlipping(row, col)) {
-      return "0ms";
-    }
-
-    return `${this.getPieceAnimationDelayValue(row, col)}ms`;
-  }
-
-  /**
-   * アニメーション状態をリセット
-   */
   reset() {
     this.flippingPieces = [];
     this.lastPlacedPiece = null;

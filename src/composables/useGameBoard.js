@@ -1,3 +1,4 @@
+// File: src/composables/useGameBoard.js
 import { ref, computed, watch, nextTick } from 'vue';
 import { BitBoard } from '@/utils/BitBoard';
 import { GameState } from '@/utils/game/GameState';
@@ -5,50 +6,35 @@ import { AnimationManager } from '@/utils/game/AnimationManager';
 import { CPUManager } from '@/utils/game/CPUManager';
 
 export function useGameBoard(gameMode, initialPlayerColor) {
-  /* ------------------------------------------------------------------
-   * state
-   * ---------------------------------------------------------------- */
   const gameState          = ref(null);
   const showColorSelection = ref(false);
   const currentPlayerColor = ref(initialPlayerColor.value);
   const showHints          = ref(true);
 
-  /* ------------------------------------------------------------------
-   * props → state 同期
-   * ---------------------------------------------------------------- */
   watch(initialPlayerColor, newColor => {
     currentPlayerColor.value = newColor;
   });
 
-  /* ------------------------------------------------------------------
-   * scores
-   * ---------------------------------------------------------------- */
   const blackScore = computed(() =>
     gameState.value?.bitBoard
       ? gameState.value.bitBoard.getScore().black
       : 2
   );
-
   const whiteScore = computed(() =>
     gameState.value?.bitBoard
       ? gameState.value.bitBoard.getScore().white
       : 2
   );
 
-  /* ------------------------------------------------------------------
-   * 各種計算プロパティ
-   * ---------------------------------------------------------------- */
   const playerColorInGame = computed(() => {
     if (!gameState.value) return null;
     return gameState.value.isCpuMode()
       ? (currentPlayerColor.value || initialPlayerColor.value)
       : gameState.value.activePlayer;
   });
-
   const opponentColor = computed(() =>
     playerColorInGame.value === 'black' ? 'white' : 'black'
   );
-
   const isCpuTurn    = computed(() =>
     gameState.value?.isCpuTurn(playerColorInGame.value) || false
   );
@@ -57,28 +43,19 @@ export function useGameBoard(gameMode, initialPlayerColor) {
   const currentPlayerLabel = computed(() =>
     colorLabel(isCpuTurn.value ? opponentColor.value : playerColorInGame.value)
   );
-
   const winnerLabel = computed(() => {
     if (!gameState.value?.winner) return '';
     if (gameState.value.winner === 'Draw') return '引き分け';
     return colorLabel(gameState.value.winner.toLowerCase());
   });
 
-  const playerScore = computed(() =>
+  const playerScore   = computed(() =>
     playerColorInGame.value === 'black' ? blackScore.value : whiteScore.value
   );
   const opponentScore = computed(() =>
     playerColorInGame.value === 'black' ? whiteScore.value : blackScore.value
   );
 
-  /* ------------------------------------------------------------------
-   * 手番がプレイヤーに戻ったらヒントを再表示
-   * ---------------------------------------------------------------- */
-  // プレイヤーのターンが変わった時のヒント表示制御は削除
-
-  /* ------------------------------------------------------------------
-   * ゲーム初期化
-   * ---------------------------------------------------------------- */
   async function initializeGame() {
     try {
       showColorSelection.value = false;
@@ -101,9 +78,6 @@ export function useGameBoard(gameMode, initialPlayerColor) {
       bitBoard.initialize();
       showHints.value = true;
 
-      /* --------------------------------------------------------------
-       * 先手が CPU の場合は直ちに 1 手打たせる
-       * -------------------------------------------------------------- */
       await nextTick();
       if (gameState.value.isCpuTurn(playerColor)) {
         gameState.value.isCpuThinking = true;
@@ -116,9 +90,6 @@ export function useGameBoard(gameMode, initialPlayerColor) {
     }
   }
 
-  /* ------------------------------------------------------------------
-   * UI から呼ばれるメソッド
-   * ---------------------------------------------------------------- */
   function handleRestart() {
     if (gameState.value.isCpuMode()) {
       showColorSelection.value = true;
@@ -126,75 +97,57 @@ export function useGameBoard(gameMode, initialPlayerColor) {
       initializeGame();
     }
   }
-
   function handleColorSelected(color) {
     showColorSelection.value = false;
     currentPlayerColor.value = color;
     initializeGame();
   }
-
   function isValidMove(row, col) {
     if (!showHints.value || gameState.value.showPassMessage || !isPlayerTurn.value) {
       return false;
     }
     return gameState.value.isValidMove(row, col);
   }
-
   async function handleCellClick({ row, col }) {
     if (!isValidMove(row, col)) return;
-
     showHints.value = false;
     await gameState.value.placePiece(row, col);
-
-    // コマを置いた後、次のプレイヤーのターンになったらヒントを表示
     if (isPlayerTurn.value && !gameState.value?.showPassMessage) {
       showHints.value = true;
     }
   }
 
-  /* ------------------------------------------------------------------
-   * 表示用ユーティリティ
-   * ---------------------------------------------------------------- */
   function hasPiece({ row, col }) {
     return gameState.value?.bitBoard?.getPiece(row, col) || false;
   }
-
   function pieceClasses(color) {
     return {
-      'piece-black' : color === 'black',
-      'piece-white' : color === 'white'
+      'piece-black': color === 'black',
+      'piece-white': color === 'white'
     };
   }
-
   function cellPieceClasses({ row, col }) {
     if (!gameState.value?.bitBoard) return {};
-    const color      = gameState.value.bitBoard.getPiece(row, col);
-    const isFlipping = gameState.value.animationManager.isPieceFlipping(row, col);
+    const flipInfo = gameState.value.animationManager.getFlippingPiece(row, col);
+    if (flipInfo) {
+      return {
+        [`piece-${flipInfo.fromColor}`]: true,
+        [`flipping-to-${flipInfo.toColor}`]: true
+      };
+    }
+    const color = gameState.value.bitBoard.getPiece(row, col);
     return {
-      [`piece-${color}`]       : !isFlipping,
-      [`flipping-to-${color}`] : isFlipping
+      [`piece-${color}`]: Boolean(color)
     };
   }
-
   function colorLabel(color) {
     return { black: '黒', white: '白' }[color] || '不明';
   }
-
   function getCellClasses(row, col) {
     return { 'valid-move': isValidMove(row, col) };
   }
 
-  function getPieceStyle(row, col) {
-    return {
-      animationDelay: gameState.value?.animationManager?.getPieceAnimationDelay({ row, col })
-    };
-  }
-
-  /* ------------------------------------------------------------------
-   * composable が返す API
-   * ---------------------------------------------------------------- */
   return {
-    /* state */
     gameState,
     showColorSelection,
     playerColorInGame,
@@ -205,8 +158,6 @@ export function useGameBoard(gameMode, initialPlayerColor) {
     winnerLabel,
     playerScore,
     opponentScore,
-
-    /* methods */
     initializeGame,
     handleRestart,
     handleColorSelected,
@@ -216,7 +167,6 @@ export function useGameBoard(gameMode, initialPlayerColor) {
     pieceClasses,
     cellPieceClasses,
     colorLabel,
-    getCellClasses,
-    getPieceStyle
+    getCellClasses
   };
 }
