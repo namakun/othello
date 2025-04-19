@@ -74,9 +74,7 @@ export function useGameBoard(gameMode, initialPlayerColor) {
   /* ------------------------------------------------------------------
    * 手番がプレイヤーに戻ったらヒントを再表示
    * ---------------------------------------------------------------- */
-  watch(isPlayerTurn, val => {
-    showHints.value = val && !gameState.value?.showPassMessage;
-  });
+  // プレイヤーのターンが変わった時のヒント表示制御は削除
 
   /* ------------------------------------------------------------------
    * ゲーム初期化
@@ -147,7 +145,11 @@ export function useGameBoard(gameMode, initialPlayerColor) {
 
     showHints.value = false;
     await gameState.value.placePiece(row, col);
-    // showHints は watch(isPlayerTurn) で自動更新
+
+    // コマを置いた後、次のプレイヤーのターンになったらヒントを表示
+    if (isPlayerTurn.value && !gameState.value?.showPassMessage) {
+      showHints.value = true;
+    }
   }
 
   /* ------------------------------------------------------------------
