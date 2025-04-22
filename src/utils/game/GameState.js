@@ -1,5 +1,5 @@
 // File: src/utils/game/GameState.js
-import { BitBoard }         from "@/utils/BitBoard";
+import { BitBoard }         from "@/utils/wasmBitBoard";
 import { AnimationManager } from "@/utils/game/AnimationManager";
 import { CPUManager }       from "@/utils/game/CPUManager";
 

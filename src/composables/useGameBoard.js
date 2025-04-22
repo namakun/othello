@@ -1,79 +1,56 @@
 // File: src/composables/useGameBoard.js
-import { ref, computed, watch, nextTick } from 'vue';
-import { BitBoard } from '@/utils/BitBoard';
-import { GameState } from '@/utils/game/GameState';
-import { AnimationManager } from '@/utils/game/AnimationManager';
-import { CPUManager } from '@/utils/game/CPUManager';
+import { ref, computed, watch, nextTick } from "vue";
+import { BitBoard } from "@/utils/wasmBitBoard";
+import { GameState } from "@/utils/game/GameState";
+import { AnimationManager } from "@/utils/game/AnimationManager";
+import { CPUManager } from "@/utils/game/CPUManager";
+import { wasmReady } from "@/utils/wasmLoader";
 
 export function useGameBoard(gameMode, initialPlayerColor) {
-  const gameState          = ref(null);
+  const gameState = ref(null);
   const showColorSelection = ref(false);
   const currentPlayerColor = ref(initialPlayerColor.value);
-  const showHints          = ref(true);
+  const showHints = ref(true);
 
-  watch(initialPlayerColor, newColor => {
+  watch(initialPlayerColor, (newColor) => {
     currentPlayerColor.value = newColor;
   });
 
-  const blackScore = computed(() =>
-    gameState.value?.bitBoard
-      ? gameState.value.bitBoard.getScore().black
-      : 2
-  );
-  const whiteScore = computed(() =>
-    gameState.value?.bitBoard
-      ? gameState.value.bitBoard.getScore().white
-      : 2
-  );
+  const blackScore = computed(() => (gameState.value?.bitBoard ? gameState.value.bitBoard.getScore().black : 2));
+  const whiteScore = computed(() => (gameState.value?.bitBoard ? gameState.value.bitBoard.getScore().white : 2));
 
   const playerColorInGame = computed(() => {
     if (!gameState.value) return null;
-    return gameState.value.isCpuMode()
-      ? (currentPlayerColor.value || initialPlayerColor.value)
-      : gameState.value.activePlayer;
+    return gameState.value.isCpuMode() ? currentPlayerColor.value || initialPlayerColor.value : gameState.value.activePlayer;
   });
-  const opponentColor = computed(() =>
-    playerColorInGame.value === 'black' ? 'white' : 'black'
-  );
-  const isCpuTurn    = computed(() =>
-    gameState.value?.isCpuTurn(playerColorInGame.value) || false
-  );
+  const opponentColor = computed(() => (playerColorInGame.value === "black" ? "white" : "black"));
+  const isCpuTurn = computed(() => gameState.value?.isCpuTurn(playerColorInGame.value) || false);
   const isPlayerTurn = computed(() => !isCpuTurn.value);
 
-  const currentPlayerLabel = computed(() =>
-    colorLabel(isCpuTurn.value ? opponentColor.value : playerColorInGame.value)
-  );
+  const currentPlayerLabel = computed(() => colorLabel(isCpuTurn.value ? opponentColor.value : playerColorInGame.value));
   const winnerLabel = computed(() => {
-    if (!gameState.value?.winner) return '';
-    if (gameState.value.winner === 'Draw') return '引き分け';
+    if (!gameState.value?.winner) return "";
+    if (gameState.value.winner === "Draw") return "引き分け";
     return colorLabel(gameState.value.winner.toLowerCase());
   });
 
-  const playerScore   = computed(() =>
-    playerColorInGame.value === 'black' ? blackScore.value : whiteScore.value
-  );
-  const opponentScore = computed(() =>
-    playerColorInGame.value === 'black' ? whiteScore.value : blackScore.value
-  );
+  const playerScore = computed(() => (playerColorInGame.value === "black" ? blackScore.value : whiteScore.value));
+  const opponentScore = computed(() => (playerColorInGame.value === "black" ? whiteScore.value : blackScore.value));
 
   async function initializeGame() {
     try {
+      /* ======== 追加: WASM 読込完了待ち ======== */
+      await wasmReady.catch(() => {}); // 読込失敗時も続行
+      /* ======================================== */
+
       showColorSelection.value = false;
 
-      const bitBoard         = new BitBoard();
+      const bitBoard = new BitBoard();
       const animationManager = new AnimationManager();
-      const playerColor      = currentPlayerColor.value || initialPlayerColor.value;
-      const cpuManager       = gameMode.startsWith('cpu-')
-        ? new CPUManager(bitBoard, gameMode, playerColor)
-        : null;
+      const playerColor = currentPlayerColor.value || initialPlayerColor.value;
+      const cpuManager = gameMode.startsWith("cpu-") ? new CPUManager(bitBoard, gameMode, playerColor) : null;
 
-      gameState.value = new GameState(
-        gameMode,
-        playerColor,
-        bitBoard,
-        animationManager,
-        cpuManager
-      );
+      gameState.value = new GameState(gameMode, playerColor, bitBoard, animationManager, cpuManager);
 
       bitBoard.initialize();
       showHints.value = true;
@@ -86,7 +63,7 @@ export function useGameBoard(gameMode, initialPlayerColor) {
         showHints.value = true;
       }
     } catch (err) {
-      console.error('ゲームの初期化に失敗しました:', err);
+      console.error("ゲームの初期化に失敗しました:", err);
     }
   }
 
@@ -122,8 +99,8 @@ export function useGameBoard(gameMode, initialPlayerColor) {
   }
   function pieceClasses(color) {
     return {
-      'piece-black': color === 'black',
-      'piece-white': color === 'white'
+      "piece-black": color === "black",
+      "piece-white": color === "white",
     };
   }
   function cellPieceClasses({ row, col }) {
@@ -132,19 +109,19 @@ export function useGameBoard(gameMode, initialPlayerColor) {
     if (flipInfo) {
       return {
         [`piece-${flipInfo.fromColor}`]: true,
-        [`flipping-to-${flipInfo.toColor}`]: true
+        [`flipping-to-${flipInfo.toColor}`]: true,
       };
     }
     const color = gameState.value.bitBoard.getPiece(row, col);
     return {
-      [`piece-${color}`]: Boolean(color)
+      [`piece-${color}`]: Boolean(color),
     };
   }
   function colorLabel(color) {
-    return { black: '黒', white: '白' }[color] || '不明';
+    return { black: "黒", white: "白" }[color] || "不明";
   }
   function getCellClasses(row, col) {
-    return { 'valid-move': isValidMove(row, col) };
+    return { "valid-move": isValidMove(row, col) };
   }
 
   return {
@@ -167,6 +144,6 @@ export function useGameBoard(gameMode, initialPlayerColor) {
     pieceClasses,
     cellPieceClasses,
     colorLabel,
-    getCellClasses
+    getCellClasses,
   };
 }
