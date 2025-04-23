@@ -9,13 +9,17 @@
         />
       </div>
 
+      <!-- 相手プレイヤー情報 -->
       <div class="player-info opponent">
         <div class="player-piece" :class="{ active: isCpuTurn }">
           <div class="piece" :class="pieceClasses(opponentColor)"></div>
         </div>
-        <div class="player-score">{{ colorLabel(opponentColor) }}: {{ opponentScore }}</div>
+        <div class="player-score">
+          {{ colorLabel(opponentColor) }}: {{ opponentScore }}
+        </div>
       </div>
 
+      <!-- 盤面 -->
       <div class="board">
         <div v-for="row in 8" :key="row - 1" class="board-row">
           <div
@@ -25,11 +29,14 @@
             :class="getCellClasses(row - 1, col - 1)"
             @click="handleCellClick({ row: row - 1, col: col - 1 })"
           >
+            <!-- 駒表示：displayBoard を参照 -->
             <div
               v-if="hasPiece({ row: row - 1, col: col - 1 })"
               class="piece"
               :class="cellPieceClasses({ row: row - 1, col: col - 1 })"
             ></div>
+
+            <!-- 合法手インジケーター -->
             <div
               v-if="isValidMove(row - 1, col - 1)"
               class="valid-move-indicator"
@@ -38,15 +45,22 @@
         </div>
       </div>
 
+      <!-- 自分プレイヤー情報 -->
       <div class="player-info current-player">
         <div class="player-piece" :class="{ active: isPlayerTurn }">
           <div class="piece" :class="pieceClasses(playerColorInGame)"></div>
         </div>
-        <div class="player-score">{{ colorLabel(playerColorInGame) }}: {{ playerScore }}</div>
+        <div class="player-score">
+          {{ colorLabel(playerColorInGame) }}: {{ playerScore }}
+        </div>
       </div>
 
+      <!-- ゲーム情報 / ボタン -->
       <div class="game-info">
-        <div class="status-message" :class="{ 'status-pass': gameState?.showPassMessage }">
+        <div
+          class="status-message"
+          :class="{ 'status-pass': gameState?.showPassMessage }"
+        >
           <div v-if="gameState?.showPassMessage" class="pass-message">
             {{ currentPlayerLabel }}の手番をスキップします
           </div>
@@ -59,8 +73,12 @@
           </div>
         </div>
         <div class="button-container">
-          <button class="restart-button" @click="handleRestart">ゲームをリセット</button>
-          <button class="menu-button" @click="returnToMenu">メニューに戻る</button>
+          <button class="restart-button" @click="handleRestart">
+            ゲームをリセット
+          </button>
+          <button class="menu-button" @click="returnToMenu">
+            メニューに戻る
+          </button>
         </div>
       </div>
     </div>
@@ -80,6 +98,7 @@ const emit = defineEmits(["update:playerColor", "return-to-menu"]);
 
 const {
   gameState,
+  displayBoard,        // 追加分は composable 側で扱われる
   showColorSelection,
   playerColorInGame,
   opponentColor,

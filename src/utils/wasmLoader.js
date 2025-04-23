@@ -1,12 +1,11 @@
 // src/utils/wasmLoader.js
-// WASM モジュールを非同期で読み込み、export を公開するユーティリティ
+// wasm-pack が生成する ESModule (reversi_wasm.js) を動的 import
 export let wasm = null;
 
-/** 読み込み完了を待つ Promise */
 export const wasmReady = (async () => {
-  const res   = await fetch("/wasm/reversi.wasm");
-  const bytes = await res.arrayBuffer();
-  const { instance } = await WebAssembly.instantiate(bytes, {});
-  wasm = instance.exports;
+  // wasm-pack の --target web は JS + wasm が同梱された ESModule を出力する
+  const mod = await import("../../public/wasm/reversi_wasm.js");
+  await mod.default();           // init() を実行（fetch & instantiation）
+  wasm = mod;
   return wasm;
 })();

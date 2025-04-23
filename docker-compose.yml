@@ -5,7 +5,13 @@ services:
     volumes:
       - ./:/app
       - /app/node_modules
+      - cargo-cache:/root/.cargo/registry
+      - target-cache:/app/wasm/target
     ports:
       - "8080:8080"
     environment:
       - NODE_ENV=development
+
+volumes:
+  cargo-cache:
+  target-cache:

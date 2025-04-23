@@ -1,75 +1,107 @@
-// File: src/utils/game/GameState.js
-import { BitBoard }         from "@/utils/wasmBitBoard";
+// src/utils/game/GameState.js
+import { BitBoard } from "@/utils/wasmBitBoard";
 import { AnimationManager } from "@/utils/game/AnimationManager";
-import { CPUManager }       from "@/utils/game/CPUManager";
+import { CPUManager } from "@/utils/game/CPUManager";
 
 export class GameState {
+  /**
+   * @param {string} gameMode  - "cpu-weak" | "cpu-normal" | "cpu-strong" | "local"
+   * @param {"black"|"white"} playerColor - プレイヤーの色
+   * @param {BitBoard} bitBoard
+   * @param {AnimationManager} animationManager
+   * @param {CPUManager|null} cpuManager
+   */
   constructor(gameMode, playerColor, bitBoard, animationManager, cpuManager) {
-    this.gameMode         = gameMode;
-    this.playerColor      = playerColor;
-    this.activePlayer     = "black";
-    this.isGameOver       = false;
-    this.winner           = null;
-    this.showPassMessage  = false;
-    this.isCpuThinking    = false;
+    this.gameMode        = gameMode;
+    this.playerColor     = playerColor;
+    this.activePlayer    = "black";
+    this.isGameOver      = false;
+    this.winner          = null;
+    this.showPassMessage = false;
+    this.isCpuThinking   = false;
+
+    // 内部ロジック用ビットボード
     this.bitBoard         = bitBoard;
+    // UIアニメ管理
     this.animationManager = animationManager;
+    // CPU対戦用（localモード時は null）
     this.cpuManager       = cpuManager;
+
+    // ──────────── 表示用ボード ────────────
+    // null | "black" | "white"
+    this.displayBoard = Array.from({ length: 8 }, () => Array(8).fill(null));
+    // 初期配置をコピー
+    this._syncDisplayFromBitBoard();
+  }
+
+  /** 表示用ボードを内部ビットボードから同期 */
+  _syncDisplayFromBitBoard() {
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        this.displayBoard[r][c] = this.bitBoard.getPiece(r, c);
+      }
+    }
   }
 
   isCpuMode() {
     return this.gameMode.startsWith("cpu-");
   }
-  isCpuTurn(pc) {
-    return this.isCpuMode() && this.activePlayer !== pc;
+  isCpuTurn(playerColor) {
+    return this.isCpuMode() && this.activePlayer !== playerColor;
   }
 
+  /** 合法手判定（内部ビットボード参照） */
   isValidMove(r, c) {
     return this.bitBoard.isValidMove(r, c, this.activePlayer);
   }
 
-  /** 石を置いて反転アニメーションを実行 */
+  /**
+   * 石を置く & アニメーション
+   * UI は displayBoard を、ロジックは bitBoard を使い分ける
+   */
   async placePiece(row, col) {
-    if (!this.bitBoard.isValidMove(row, col, this.activePlayer)) return;
+    if (!this.isValidMove(row, col)) return;
 
-    // 1) 新駒だけ即時反映
-    const oldPlayer = this.activePlayer === "black" ? "white" : "black";
-    this.bitBoard.setPiece(row, col, this.activePlayer);
-    this.animationManager.setLastPlacedPiece(row, col);
+    const player    = this.activePlayer;
+    const fromColor = player === "black" ? "white" : "black";
 
-    // 2) 方向ごとに反転すべき駒をグループ取得
+    // ────────────────────────────────────
+    // (1) 反転対象だけ先に取得 (旧盤面ベース)
     const flipGroups = this.bitBoard.getFlipsByDirection(
       row,
       col,
-      this.activePlayer
+      player
     );
 
-    // 3) アニメ開始 & 完了コールバックで flipPiece → カウント
+    // (2) UI 用に「新駒だけ」即時表示
+    this.displayBoard[row][col] = player;
+    this.animationManager.setLastPlacedPiece(row, col);
+    // ────────────────────────────────────
+
+    // (3) アニメーションは UI 表示のみで完結
     const totalFlips = flipGroups.reduce((sum, g) => sum + g.length, 0);
     await new Promise((resolve) => {
       let done = 0;
       this.animationManager.startFlippingAnimation(
         flipGroups,
-        oldPlayer,
-        this.activePlayer,
-        (piece) => {
-          // 各コマ反転完了時にボードを更新
-          this.bitBoard.flipPiece(piece.row, piece.col, this.activePlayer);
-          // カウントアップ
-          done += 1;
-          // 最後のコールバックが来たら即座に次へ
-          if (done >= totalFlips) {
-            resolve();
-          }
+        fromColor,
+        player,
+        /** onComplete */ (piece) => {
+          // UI 表示ボードをひっくり返す
+          this.displayBoard[piece.row][piece.col] = player;
+          if (++done >= totalFlips) resolve();
         }
       );
     });
 
-    // 4) 次手番へ
+    // (4) アニメ終了後に初めて内部ビットボードを一括更新
+    this.bitBoard.applyMove(row, col, player);
+
+    // (5) 次手番へ
     await this.switchToNextPlayer();
   }
 
-  /* ─── 以下は既存のまま ──────────────────────────────────────────── */
+  /* ───────────── 以降は既存ロジック ───────────── */
 
   async switchToNextPlayer() {
     const next = this.activePlayer === "black" ? "white" : "black";
@@ -129,5 +161,9 @@ export class GameState {
     this.winner          = null;
     this.showPassMessage = false;
     this.isCpuThinking   = false;
+
+    // 盤面も初期化
+    this.bitBoard.initialize();
+    this._syncDisplayFromBitBoard();
   }
 }

@@ -1,4 +1,4 @@
-// File: src/composables/useGameBoard.js
+// src/composables/useGameBoard.js
 import { ref, computed, watch, nextTick } from "vue";
 import { BitBoard } from "@/utils/wasmBitBoard";
 import { GameState } from "@/utils/game/GameState";
@@ -7,41 +7,68 @@ import { CPUManager } from "@/utils/game/CPUManager";
 import { wasmReady } from "@/utils/wasmLoader";
 
 export function useGameBoard(gameMode, initialPlayerColor) {
+  // ────────── State ──────────
   const gameState = ref(null);
   const showColorSelection = ref(false);
   const currentPlayerColor = ref(initialPlayerColor.value);
   const showHints = ref(true);
 
+  // 合法手ビットボードのキャッシュ
+  const legalMovesBB = ref(0n);
+
+  // Watch：プレイヤー色が変わったら同期
   watch(initialPlayerColor, (newColor) => {
     currentPlayerColor.value = newColor;
   });
 
-  const blackScore = computed(() => (gameState.value?.bitBoard ? gameState.value.bitBoard.getScore().black : 2));
-  const whiteScore = computed(() => (gameState.value?.bitBoard ? gameState.value.bitBoard.getScore().white : 2));
+  // ────────── Board Display ──────────
+  // UI はこれだけを参照して駒を描画する
+  const displayBoard = computed(() => (gameState.value ? gameState.value.displayBoard : Array.from({ length: 8 }, () => Array(8).fill(null))));
 
+  // ────────── Scoring ──────────
+  const blackScore = computed(() => gameState.value?.bitBoard.getScore().black ?? 2);
+  const whiteScore = computed(() => gameState.value?.bitBoard.getScore().white ?? 2);
+
+  // ────────── Turn State ──────────
   const playerColorInGame = computed(() => {
     if (!gameState.value) return null;
     return gameState.value.isCpuMode() ? currentPlayerColor.value || initialPlayerColor.value : gameState.value.activePlayer;
   });
   const opponentColor = computed(() => (playerColorInGame.value === "black" ? "white" : "black"));
-  const isCpuTurn = computed(() => gameState.value?.isCpuTurn(playerColorInGame.value) || false);
+  const isCpuTurn = computed(() => gameState.value?.isCpuTurn(playerColorInGame.value) ?? false);
   const isPlayerTurn = computed(() => !isCpuTurn.value);
 
+  // ────────── Labels ──────────
   const currentPlayerLabel = computed(() => colorLabel(isCpuTurn.value ? opponentColor.value : playerColorInGame.value));
   const winnerLabel = computed(() => {
     if (!gameState.value?.winner) return "";
     if (gameState.value.winner === "Draw") return "引き分け";
     return colorLabel(gameState.value.winner.toLowerCase());
   });
-
   const playerScore = computed(() => (playerColorInGame.value === "black" ? blackScore.value : whiteScore.value));
   const opponentScore = computed(() => (playerColorInGame.value === "black" ? whiteScore.value : blackScore.value));
 
+  // ────────── Legal Moves Cache ──────────
+  function updateLegalMoves() {
+    if (!gameState.value) {
+      legalMovesBB.value = 0n;
+    } else {
+      legalMovesBB.value = gameState.value.bitBoard.getLegalMovesBitboard(gameState.value.activePlayer);
+    }
+  }
+  watch(() => gameState.value && gameState.value.activePlayer, updateLegalMoves, { immediate: true });
+
+  /** 合法手判定（ビット演算のみ） */
+  function isValidMove(row, col) {
+    if (!showHints.value || gameState.value.showPassMessage || !isPlayerTurn.value) return false;
+    const pos = BigInt(row * 8 + col);
+    return (legalMovesBB.value & (1n << pos)) !== 0n;
+  }
+
+  // ────────── Initialize ──────────
   async function initializeGame() {
     try {
-      /* ======== 追加: WASM 読込完了待ち ======== */
-      await wasmReady.catch(() => {}); // 読込失敗時も続行
-      /* ======================================== */
+      await wasmReady.catch(() => {}); // WASM 読込待ち(失敗可)
 
       showColorSelection.value = false;
 
@@ -52,9 +79,9 @@ export function useGameBoard(gameMode, initialPlayerColor) {
 
       gameState.value = new GameState(gameMode, playerColor, bitBoard, animationManager, cpuManager);
 
-      bitBoard.initialize();
       showHints.value = true;
 
+      // 必要なら CPU 初手
       await nextTick();
       if (gameState.value.isCpuTurn(playerColor)) {
         gameState.value.isCpuThinking = true;
@@ -67,44 +94,41 @@ export function useGameBoard(gameMode, initialPlayerColor) {
     }
   }
 
-  function handleRestart() {
-    if (gameState.value.isCpuMode()) {
-      showColorSelection.value = true;
-    } else {
-      initializeGame();
+  // ────────── Cell Click ──────────
+  async function handleCellClick({ row, col }) {
+    if (!isValidMove(row, col)) return;
+    showHints.value = false;
+    await gameState.value.placePiece(row, col);
+    if (isPlayerTurn.value && !gameState.value.showPassMessage) {
+      showHints.value = true;
     }
+  }
+
+  // ────────── Helpers ──────────
+  function handleRestart() {
+    if (gameState.value.isCpuMode()) showColorSelection.value = true;
+    else initializeGame();
   }
   function handleColorSelected(color) {
     showColorSelection.value = false;
     currentPlayerColor.value = color;
     initializeGame();
   }
-  function isValidMove(row, col) {
-    if (!showHints.value || gameState.value.showPassMessage || !isPlayerTurn.value) {
-      return false;
-    }
-    return gameState.value.isValidMove(row, col);
-  }
-  async function handleCellClick({ row, col }) {
-    if (!isValidMove(row, col)) return;
-    showHints.value = false;
-    await gameState.value.placePiece(row, col);
-    if (isPlayerTurn.value && !gameState.value?.showPassMessage) {
-      showHints.value = true;
-    }
-  }
 
+  /** そのマスに駒があるか（displayBoard 参照） */
   function hasPiece({ row, col }) {
-    return gameState.value?.bitBoard?.getPiece(row, col) || false;
+    return !!displayBoard.value[row][col];
   }
+  /** 駒の基本クラス（黒 or 白） */
   function pieceClasses(color) {
     return {
       "piece-black": color === "black",
       "piece-white": color === "white",
     };
   }
+  /** セルのクラス（反転アニメ or 最終色） */
   function cellPieceClasses({ row, col }) {
-    if (!gameState.value?.bitBoard) return {};
+    // 1) アニメーション中は flippingPieces を優先
     const flipInfo = gameState.value.animationManager.getFlippingPiece(row, col);
     if (flipInfo) {
       return {
@@ -112,10 +136,9 @@ export function useGameBoard(gameMode, initialPlayerColor) {
         [`flipping-to-${flipInfo.toColor}`]: true,
       };
     }
-    const color = gameState.value.bitBoard.getPiece(row, col);
-    return {
-      [`piece-${color}`]: Boolean(color),
-    };
+    // 2) 通常は displayBoard の色
+    const color = displayBoard.value[row][col];
+    return { [`piece-${color}`]: Boolean(color) };
   }
   function colorLabel(color) {
     return { black: "黒", white: "白" }[color] || "不明";
@@ -125,7 +148,9 @@ export function useGameBoard(gameMode, initialPlayerColor) {
   }
 
   return {
+    // state
     gameState,
+    displayBoard,
     showColorSelection,
     playerColorInGame,
     opponentColor,
@@ -135,11 +160,15 @@ export function useGameBoard(gameMode, initialPlayerColor) {
     winnerLabel,
     playerScore,
     opponentScore,
+
+    // actions
     initializeGame,
+    handleCellClick,
     handleRestart,
     handleColorSelected,
+
+    // utils
     isValidMove,
-    handleCellClick,
     hasPiece,
     pieceClasses,
     cellPieceClasses,
