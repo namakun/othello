@@ -1,87 +1,75 @@
+// File: src/utils/cpu/BaseCPU.js
+import { BitBoard } from "@/utils/bitboard/BitBoardBridge";
+
+/*─────────────────────────────────────────────*
+ *  内部 util：64bit 1 ビット→index (0–63)      *
+ *─────────────────────────────────────────────*/
+function bitIndex(mask) {
+  const lo = Number(mask & 0xffffffffn);
+  if (lo) return Math.log2(lo);
+  const hi = Number(mask >> 32n);
+  return 32 + Math.log2(hi);
+}
+
 /**
- * CPUプレイヤーの基底クラス
- * 全てのCPU実装はこのクラスを継承する
+ * CPU プレイヤーの基底クラス
+ * - 盤面シミュレーションには BitBoard.applyMove() を使用
+ * - 合法手取得は legalMovesBitboard() を直接利用
  */
 export class BaseCPU {
   /**
-   * コンストラクタ
-   * @param {BitBoard} bitBoard - ビットボード
-   * @param {string} color - CPUの色 ('black' or 'white')
+   * @param {BitBoard} bitBoard
+   * @param {"black"|"white"}   color
    */
   constructor(bitBoard, color) {
     this.bitBoard = bitBoard;
-    this.color = color;
-    this.opponentColor = color === 'black' ? 'white' : 'black';
+    this.color    = color;
+    this.oppColor = color === "black" ? "white" : "black";
   }
 
-  /**
-   * 有効な手の一覧を取得
-   * @returns {Array<{row: number, col: number}>} 有効な手の座標リスト
-   */
-  getValidMoves() {
-    const validMoves = [];
-    for (let row = 0; row < 8; row++) {
-      for (let col = 0; col < 8; col++) {
-        if (this.bitBoard.isValidMove(row, col, this.color)) {
-          validMoves.push({ row, col });
-        }
-      }
+  /** 自ビットボードをディープコピー */
+  cloneBoard() {
+    const cp           = new BitBoard();
+    cp.blackBoard      = this.bitBoard.blackBoard;
+    cp.whiteBoard      = this.bitBoard.whiteBoard;
+    return cp;
+  }
+
+  /** 合法手配列 [{row,col},…] を返す */
+  getValidMoves(board = this.bitBoard, clr = this.color) {
+    const movesBB = board.legalMovesBitboard(clr);
+    const list = [];
+    let bits   = movesBB;
+    while (bits) {
+      const lsb = bits & -bits;
+      const idx = bitIndex(lsb);
+      list.push({ row: Math.floor(idx / 8), col: idx % 8 });
+      bits ^= lsb;
     }
-    return validMoves;
+    return list;
   }
 
-  /**
-   * ゲームが終了しているかどうかを判定
-   * @param {BitBoard} board - 評価するボード
-   * @returns {boolean} ゲームが終了しているかどうか
-   */
+  /** 終局判定 */
   isGameOver(board) {
-    // 黒と白両方の有効な手がない場合、ゲーム終了
-    for (let row = 0; row < 8; row++) {
-      for (let col = 0; col < 8; col++) {
-        if (board.isValidMove(row, col, "black") || board.isValidMove(row, col, "white")) {
-          return false;
-        }
-      }
-    }
-    return true;
+    return !board.hasValidMoves("black") && !board.hasValidMoves("white");
   }
 
-  /**
-   * ボードの基本評価を行う
-   * @param {BitBoard} board - 評価するボード
-   * @returns {number} 評価スコア
-   */
+  /** 基本評価（駒差＋角） */
   evaluateBoard(board) {
-    const score = board.getScore();
-    const myScore = this.color === 'black' ? score.black : score.white;
-    const opponentScore = this.color === 'black' ? score.white : score.black;
+    const { black, white } = board.score();
+    const my   = this.color === "black" ? black : white;
+    const opp  = this.color === "black" ? white : black;
+    let evalPt = my - opp;
 
-    let evaluation = 0;
-
-    // 基本的な評価（駒数の差）
-    evaluation += myScore - opponentScore;
-
-    // 角の評価（最も重要）
-    const corners = [[0, 0], [0, 7], [7, 0], [7, 7]];
-    for (const [row, col] of corners) {
-      const piece = board.getPiece(row, col);
-      if (piece === this.color) {
-        evaluation += 25;
-      } else if (piece === this.opponentColor) {
-        evaluation -= 25;
+    [["black", 0, 0], ["white", 0, 7], ["white", 7, 0], ["white", 7, 7]].forEach(
+      ([, r, c]) => {
+        const p = board.getPiece(r, c);
+        if (p === this.color) evalPt += 25;
+        else if (p === this.oppColor) evalPt -= 25;
       }
-    }
-
-    return evaluation;
+    );
+    return evalPt;
   }
 
-  /**
-   * 次の手を選択する
-   * サブクラスでオーバーライドする必要がある
-   * @returns {{row: number, col: number}} 選択された手の座標
-   */
-  selectMove() {
-    throw new Error('selectMove() must be implemented by subclass');
-  }
+  /* 子クラスで selectMove() を実装 */
 }
