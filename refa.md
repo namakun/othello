@@ -1,189 +1,146 @@
-リファクタリング計画
-0. 全体概要
-Rust API 整理（WASM 開発体験向上）
+/crates
+└─ reversi
+   └─ src
+      └─ lib.rs                # ── Rust 製ビットボードロジックの実装 (WASM 出力)
+      
+/src
+├─ utils
+│  ├─ wasmLoader.js           # ── Wasm モジュールの動的 import & 初期化
+│  │
+│  ├─ bitboard                # ── ビットボード操作に関する処理一式
+│  │  ├─ BitBoardBridge.js    # ── JS 側ビットボード状態管理 + wasm 関数呼び出しラッパ
+│  │  └─ bitView.js           # ── index⇔{row,col} 変換の View ヘルパ
+│  │
+│  ├─ game                     # ── ゲーム進行＆ UI アニメ管理
+│  │  ├─ AnimationManager.js  # ── 駒反転アニメーションの管理
+│  │  ├─ GameCore.js          # ── ゲームのターン/勝敗ロジック（BitBoardBridge を利用）
+│  │  └─ CPUManager.js        # ── CPU モデルの生成・思考タイミング制御
+│  │
+│  └─ cpu                      # ── CPU 対戦 AI の実装
+│     ├─ BaseCPU.js           # ── 共通評価／合法手取得／クローン機能
+│     ├─ RandomCPU.js         # ── ランダム CPU
+│     ├─ AlphaBetaCPU.js      # ── α-β 剪定 CPU
+│     └─ ReinforcementCPU.js  # ── 強化学習予定 CPU (現状ランダム)
+│
+├─ constants
+│  └─ gameConfig.js           # ── ゲームモード定義（local/cpu-weak/…）
+│
+├─ composables                # ── Vue3 Composition API で層分離
+│  ├─ useGameCore.js          # ── GameCore を reactive にラップ
+│  ├─ useGameUI.js            # ── UI 表示用のスコア・クラス・ラベル派生値
+│  └─ useGameBoard.js         # ── Core＋UI を束ねてコンポーネントに提供
+│
+├─ components                 # ── Vue 単一ファイルコンポーネント
+│  ├─ ModeSelection.vue       # ── ゲームモード選択画面
+│  ├─ ColorSelection.vue      # ── CPU モード時の先手色選択ダイアログ
+│  └─ GameBoard.vue           # ── 盤面＋駒描画＋UI 操作のメイン
+│
+├─ assets
+│  └─ styles
+│     ├─ ModeSelection.css    # ―― ModeSelection 用スタイル
+│     ├─ ColorSelection.css   # ―― ColorSelection 用スタイル
+│     └─ GameBoard.css        # ―― GameBoard 用スタイル＋共通変数
+│
+└─ App.vue                    # ── ルートコンポーネント (ModeSelection ⇔ GameBoard 切替)
 
-CPU → WebWorker 化（UI フリーズ対策として最優先）
+各層の責務
+Rust（lib.rs）
 
-ロジック／UI 層切り分け（テスト・保守性向上）
+全方向の合法手計算 (gen_legal_moves),
 
-各ステップは独立して進められますが、1→2→3 の順で行うことで工数を平滑化しつつ、優先度の高い「UI フリーズ問題」から解消できます。
+反転グループ（index 配列）生成 (gen_flip_groups),
 
-1. Rust API 整理（WASM 開発体験向上）
-1.1 目的
-JS 側から呼びやすい、明確なエクスポート API を提供
+着手適用 (apply_move),
 
-冗長な関数・重複コードを整理
+ビットカウント (popcnt64)
+→ パフォーマンス重視で Rust 側に全ロジックを持たせる
 
-将来的な探索ロジック（best_move）追加に備える
+Wasm ローダー（wasmLoader.js）
 
-1.2 手順
-Cargo.toml に wasm-bindgen などのバージョン固定とメタデータ追記
+Wasm モジュールをフェッチ＆初期化し、他モジュールが wasm として利用できるようにする
 
-toml
-コピーする
-編集する
-[package]
-name = "reversi_wasm"
-version = "0.1.0"
-authors = ["あなたの名前 <email@example.com>"]
-edition = "2021"
+BitBoard 系
 
-[lib]
-crate-type = ["cdylib"]
+BitBoardBridge.js:
 
-[dependencies]
-wasm-bindgen = "0.2.100"
-console_error_panic_hook = "0.1"
+blackBoard/whiteBoard を BigInt で管理
 
-[package.metadata.wasm-pack.profile.release]
-wasm-opt = true
-lib.rs の共通化・API 拡張
+Rust 関数を呼んで合法手・反転グループ取得・着手適用・スコア計算
 
-compute_flips_dir → kogge_stone_flips にリネーム
+initialize(), getPiece() など JS から直接必要なメソッドもここに
 
-gen_flip_bitboards・apply_move_* の内部で同じ処理を呼ぶよう共通化
+bitView.js:
 
-新関数 best_move(p:u64,o:u64,depth:u32)->u32 を追加
+ビットインデックスを {row,col} に変換するだけの純粋 View ヘルパ
 
-rust
-コピーする
-編集する
-#[wasm_bindgen]
-pub fn best_move(p: u64, o: u64, depth: u32) -> u32 {
-    // 簡易 αβ or MCTS を内部で呼び出し、0–63 の pos を返す
-    alpha_beta_search(p, o, depth).pos as u32
-}
-コード例：共通化イメージ
+ゲーム進行／アニメ管理（utils/game）
 
-rust
-コピーする
-編集する
-fn kogge_stone_flips(m: u64, p: u64, o: u64, idx: usize) -> u64 { /* … */ }
+GameCore.js:
 
-#[wasm_bindgen]
-pub fn gen_flip_bitboards(p: u64, o: u64, pos: u32) -> Vec<u64> {
-  let m = 1u64 << pos;
-  DIRS.iter().enumerate()
-      .map(|(i,_)| kogge_stone_flips(m,p,o,i))
-      .collect()
-}
+ターン制御（パス・勝敗判定）
 
-#[wasm_bindgen]
-pub fn apply_move_p(p: u64, o: u64, pos: u32) -> u64 {
-  let flips = gen_flip_bitboards(p,o,pos).iter().copied().fold(0, |a,b|a|b);
-  p | (1<<pos) | flips
-}
-1.3 テスト
-wasm-pack test --headless --firefox などでユニットテスト
+BitBoardBridge で駒操作・得点取得
 
-JS 側から wasm.best_move を呼び出して正しい pos が返るか確認
+AnimationManager 経由で駒反転アニメ → 内部更新
 
-2. CPU → WebWorker 化（UI フリーズ対策）
-2.1 目的
-メインスレッドで走っている αβ／強化学習探索を WebWorker に移し、UI スレッドのブロックを防ぐ
+AnimationManager.js:
 
-2.2 手順
-src/workers/cpuWorker.js を作成
+反転アニメ用タイミング／エフェクト管理
 
-js
-コピーする
-編集する
-// cpuWorker.js
-importScripts("/wasm/reversi_wasm.js");
-wasm_bindgen().then(() => {
-  self.onmessage = ({ data: { P, O, depth, mode } }) => {
-    let pos;
-    if (mode === "cpu-weak") {
-      // RandomCPU ロジック（JS で軽量）
-      pos = random_move(P, O);
-    } else {
-      // WASM 側 best_move を呼ぶ
-      pos = wasm.best_move(P, O, depth);
-    }
-    postMessage({ pos });
-  };
-});
-CPUManager.js を修正
+CPUManager.js:
 
-js
-コピーする
-編集する
-export class CPUManager {
-  constructor(bitBoard, gameMode, playerColor) {
-    this.bitBoard = bitBoard;
-    this.gameMode  = gameMode;
-    this.playerColor = playerColor;
-    this.worker = new Worker(new URL('../workers/cpuWorker.js', import.meta.url));
-  }
-  async selectMove() {
-    const P = this.bitBoard.blackBoard;
-    const O = this.bitBoard.whiteBoard;
-    const depth = this.gameMode === 'cpu-strong' ? 6 : 4;
-    return new Promise(resolve => {
-      this.worker.onmessage = ({ data: { pos } }) => {
-        resolve({ row: pos >> 3, col: pos & 7 });
-      };
-      this.worker.postMessage({ P, O, depth, mode: this.gameMode });
-    });
-  }
-}
-ビルド設定
+選択されたモードに応じて適切な BaseCPU 派生を生成
 
-Vue CLI は worker-loader が同梱されているので特別な設定不要
+非同期思考時間の演出
 
-2.3 動作確認
-"cpu-normal"／"cpu-strong" モードで UI 操作→CPU 思考中もスムーズに操作可能
+CPU AI（utils/cpu）
 
-DevTools の Performance で Main thread に αβ 呼び出しが残らないことを確認
+BaseCPU.js: 合法手取得・盤面評価・ゲーム終了判定
 
-3. ロジック／UI 層切り分け（テスト・保守性向上）
-3.1 目的
-GameState：純粋にゲーム状態とルールだけを担当
+派生クラスで手法を切り替え (Random, AlphaBeta, Reinforcement)
 
-UI 層（useGameBoard / AnimationManager）：レンダリング・アニメーション・ユーザー入力だけを担当
+Vue レイヤー
 
-3.2 手順
-GameState.placePiece を返り値付きへ変更
+useGameCore.js:
 
-js
-コピーする
-編集する
-// before: GameState.placePiece は nothing を返す
-// after:
-async placePiece(row, col) {
-  if (!this.bitBoard.isValidMove(row,col,this.activePlayer)) return [];
-  // 1) ビットボード更新
-  this.bitBoard.applyMove(row,col);
-  // 2) 反転グループだけ取得して返却
-  return this.bitBoard.getFlipsByDirection(row,col,this.activePlayer);
-}
-useGameBoard.js を調整
+GameCore インスタンスを ref として管理
 
-js
-コピーする
-編集する
-async function handleCellClick({row,col}) {
-  if (!isValidMove(row,col)) return;
-  // GameState から flipGroups を受け取る
-  const flips = await gameState.value.placePiece(row,col);
-  // AnimationManager に渡してアニメ開始
-  animationManager.startFlippingAnimation(flips, /*…*/);
-}
-AnimationManager はそのまま使えるので変更不要
+displayBoard（盤面配列）を算出
 
-3.3 メリット
-GameState は副作用なしの純粋関数群に近づき、単体テストが容易に
+playerMove(), restart() などロジック呼び出し
 
-UI 層はアニメーションと Vue 再描画のみ
+useGameUI.js:
 
-将来 React／Svelte 化しても GameState 部分はそのまま再利用可能
+スコア（黒/白）・色ラベル・CSS クラス系を computed で提供
 
-まとめ
-Rust API 整理 で WASM 側をクリーンかつ拡張しやすく
+isValidMove() など純粋 UI 判定
 
-WebWorker 化 で UI フリーズを即時解消
+useGameBoard.js:
 
-ロジック/UI 分離 で責務を切り分け、テストと保守性を大きく向上
+Core＋UI を組み合わせ、色選択ダイアログやヒント制御を追加
 
-この手順に沿って進めることで、パフォーマンス・開発体験・保守性のすべてをバランス良く強化できます。
-まずは 1→2→3 の順に、各ステップを順次マージ＆動作確認していきましょう。
+コンポーネントに必要な state & action を一括公開
+
+components/*.vue:
+
+ModeSelection.vue, ColorSelection.vue → 選択画面
+
+GameBoard.vue → 盤面表示＆操作／ステータス・ボタン
+
+App.vue → 画面遷移制御（モード選択⇔ゲーム開始）
+
+スタイル
+
+各コンポーネント専用の .css に外部化
+
+全体共通変数は GameBoard.css の :root で定義
+
+この構成により
+
+ビット演算ロジックは全て Rust/Wasm に任せ、
+
+JS/TS 側は呼び出しと状態管理に集中、
+
+View もロジックも完全にレイヤ分離
+
+という要件を満たしています。
