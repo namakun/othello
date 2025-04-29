@@ -1,7 +1,9 @@
 // File: src/utils/game/AnimationManager.js
+import { ViewBoard } from "./ViewBoard";
+
 export class AnimationManager {
   constructor() {
-    this.flippingPieces = [];
+    this.viewBoard = new ViewBoard();
     this.lastPlacedPiece = null;
   }
 
@@ -13,20 +15,36 @@ export class AnimationManager {
    * @param {(piece:{row, col})=>void} onComplete
    */
   startFlippingAnimation(flipGroups, fromColor, toColor, onComplete) {
+    let totalPieces = 0;
+    let completedPieces = 0;
+
+    // 総駒数を計算
+    flipGroups.forEach(group => {
+      totalPieces += group.length;
+    });
+
+    // 各グループの駒を処理
     flipGroups.forEach((group) => {
       group.forEach((p, idx) => {
         const delay = idx * 100;
-        setTimeout(() => {
-          // アニメーション用クラスを追加
-          this.flippingPieces.push({ row: p.row, col: p.col, fromColor, toColor });
-        }, delay);
 
+        // 反転開始
         setTimeout(() => {
-          // アニメクラスを削除
-          this.flippingPieces = this.flippingPieces.filter((x) => !(x.row === p.row && x.col === p.col));
-          // ボード反転（ここで確実に flipPiece を呼ぶ）
-          if (onComplete) onComplete(p);
-        }, delay + 500);
+          // ViewBoardに反転開始を通知
+          this.viewBoard.startFlipping(p.row, p.col, toColor);
+
+          // 反転完了（500ms後）
+          setTimeout(() => {
+            // ViewBoardに反転完了を通知
+            this.viewBoard.completeFlipping(p.row, p.col);
+
+            // カウントアップして全て完了したらコールバック
+            completedPieces++;
+            if (completedPieces >= totalPieces && onComplete) {
+              onComplete(p);
+            }
+          }, 500);
+        }, delay);
       });
     });
   }
@@ -35,16 +53,36 @@ export class AnimationManager {
     this.lastPlacedPiece = { row, col };
   }
 
-  isPieceFlipping(row, col) {
-    return this.flippingPieces.some((p) => p.row === row && p.col === col);
+  /**
+   * BitBoardから初期状態を同期
+   * @param {import("@/utils/bitboard/BitBoardBridge").BitBoard} bitBoard
+   */
+  syncViewBoard(bitBoard) {
+    this.viewBoard.syncFromBitBoard(bitBoard);
   }
 
-  getFlippingPiece(row, col) {
-    return this.flippingPieces.find((p) => p.row === row && p.col === col);
+  /**
+   * 駒が反転中かどうか
+   * @param {number} row
+   * @param {number} col
+   * @returns {boolean}
+   */
+  isPieceFlipping(row, col) {
+    return this.viewBoard.isFlipping(row, col);
+  }
+
+  /**
+   * セルの状態を取得
+   * @param {number} row
+   * @param {number} col
+   * @returns {object} セルの状態
+   */
+  getCellState(row, col) {
+    return this.viewBoard.getCell(row, col);
   }
 
   reset() {
-    this.flippingPieces = [];
+    this.viewBoard.reset();
     this.lastPlacedPiece = null;
   }
 }

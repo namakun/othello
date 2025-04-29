@@ -21,6 +21,9 @@ export class GameCore {
     this.cpuManager       = mode.startsWith("cpu-")
       ? new CPUManager(this.bitBoard, mode, playerColor)
       : null;
+
+    // ViewBoardを初期化
+    this.animationManager.syncViewBoard(this.bitBoard);
   }
 
   // ────────────── ラッパ ──────────────
@@ -55,20 +58,24 @@ export class GameCore {
     const flipGroups = groupsToRowCols(rawGroups);
 
     // UI アニメーション
-    const total = flipGroups.reduce((sum, g) => sum + g.length, 0);
     await new Promise((resolve) => {
-      let done = 0;
       this.animationManager.setLastPlacedPiece(row, col);
+
+      // クリックした場所に新しい駒を配置
+      this.animationManager.viewBoard.placePiece(row, col, player);
+
       this.animationManager.startFlippingAnimation(
         flipGroups,
         fromColor,
         player,
-        () => { if (++done >= total) resolve(); }
+        () => resolve()
       );
     });
 
-    // 内部ビットボード更新 & 次手へ
+    // 内部ビットボード更新
     this.bitBoard.applyMove(row, col, player);
+
+    // 次手へ
     await this._nextTurn();
   }
 
@@ -108,6 +115,9 @@ export class GameCore {
 
     this.bitBoard.initialize();
     this.animationManager.reset();
+
+    // ViewBoardを同期
+    this.animationManager.syncViewBoard(this.bitBoard);
 
     if (this.cpuManager) {
       this.cpuManager.updateBitBoard(this.bitBoard);

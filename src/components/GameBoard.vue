@@ -18,8 +18,11 @@
     <div class="board">
       <div v-for="row in 8" :key="row" class="board-row">
         <div v-for="col in 8" :key="col" class="board-cell" :class="getCellClasses(row - 1, col - 1)" @click="handleCellClick({ row: row - 1, col: col - 1 })">
-          <!-- 駒 -->
-          <div v-if="hasPiece({ row: row - 1, col: col - 1 })" class="piece" :class="cellPieceClasses({ row: row - 1, col: col - 1 })" />
+          <!-- 駒（2層構造） -->
+          <div v-if="hasPiece({ row: row - 1, col: col - 1 })" class="piece-container" :class="getPieceContainerClasses({ row: row - 1, col: col - 1 })">
+            <div class="piece front" :class="getFrontPieceClasses({ row: row - 1, col: col - 1 })"></div>
+            <div class="piece back" :class="getBackPieceClasses({ row: row - 1, col: col - 1 })"></div>
+          </div>
           <!-- 合法手インジケータ -->
           <div v-if="isValidMove(row - 1, col - 1) && showHints" class="valid-move-indicator" />
         </div>
@@ -86,9 +89,11 @@ const {
   isValidMove,
   hasPiece,
   pieceClasses,
-  cellPieceClasses,
   colorLabel,
   getCellClasses,
+  getPieceContainerClasses,
+  getFrontPieceClasses,
+  getBackPieceClasses,
 
   /* actions */
   initializeGame,

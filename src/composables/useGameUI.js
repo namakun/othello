@@ -42,21 +42,43 @@ export function useGameUI(gameCore, showHints) {
       "piece-white": color === "white",
     };
   }
-  /** セルの駒クラス（反転アニメ含む） */
-  function cellPieceClasses({ row, col }) {
-    // アニメーション中なら優先
-    const flip = core.value?.animationManager.getFlippingPiece(row, col);
-    if (flip) {
-      return {
-        [`piece-${flip.fromColor}`]: true,
-        [`flipping-to-${flip.toColor}`]: true,
-      };
-    }
-    const color = displayBoard.value[row][col];
-    return { [`piece-${color}`]: Boolean(color) };
-  }
   function getCellClasses(row, col) {
     return { "valid-move": isValidMove(row, col) };
+  }
+
+  /* ────────── 2層構造駒用クラス ────────── */
+  function getPieceContainerClasses({ row, col }) {
+    if (!core.value) return {};
+
+    // ViewBoardからセル状態を取得
+    const cellState = core.value.animationManager.getCellState(row, col);
+
+    // 反転中ならflippingクラスを追加
+    return {
+      "flipping": cellState.flipping
+    };
+  }
+
+  function getFrontPieceClasses({ row, col }) {
+    if (!core.value) return {};
+
+    // ViewBoardからセル状態を取得
+    const cellState = core.value.animationManager.getCellState(row, col);
+
+    // 表面の色に対応するクラス
+    return pieceClasses(cellState.owner);
+  }
+
+  function getBackPieceClasses({ row, col }) {
+    if (!core.value) return {};
+
+    // ViewBoardからセル状態を取得
+    const cellState = core.value.animationManager.getCellState(row, col);
+
+    // 裏面の色（反転後の色）に対応するクラス
+    // 反転中でなければ表面と同じ色を使用
+    const color = cellState.target || cellState.owner;
+    return pieceClasses(color);
   }
 
   /* ────────── そのセルに駒があるか ────────── */
@@ -76,8 +98,10 @@ export function useGameUI(gameCore, showHints) {
     colorLabel,
     isValidMove,
     pieceClasses,
-    cellPieceClasses,
     getCellClasses,
+    getPieceContainerClasses,
+    getFrontPieceClasses,
+    getBackPieceClasses,
     hasPiece,
   };
 }

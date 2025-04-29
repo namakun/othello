@@ -29,21 +29,17 @@ export function useGameCore(mode, initialColor) {
     if (!coreRef.value) {
       return Array.from({ length: 8 }, () => Array(8).fill(null));
     }
+
     const board = Array.from({ length: 8 }, () => Array(8).fill(null));
 
-    // (1) 確定石
+    // ViewBoardから表示用データを取得
     for (let r = 0; r < 8; r++) {
       for (let c = 0; c < 8; c++) {
-        board[r][c] = coreRef.value.pieceAt(r, c);
+        const cellState = coreRef.value.animationManager.getCellState(r, c);
+        board[r][c] = cellState.owner;
       }
     }
-    // (2) アニメ中の石
-    coreRef.value.animationManager.flippingPieces.forEach(({ row, col, fromColor }) => {
-      board[row][col] = fromColor;
-    });
-    // (3) 直近置石ハイライト（実色で上書き）
-    const last = coreRef.value.animationManager.lastPlacedPiece;
-    if (last) board[last.row][last.col] = coreRef.value.pieceAt(last.row, last.col);
+
     return board;
   });
 
