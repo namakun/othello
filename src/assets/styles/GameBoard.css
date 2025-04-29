@@ -55,7 +55,7 @@ button,
 /* --- プレイヤー情報 --- */
 .player-info {
   display: flex;
-  justify-content: center;
+  justify-content: center;  /* 中央揃えに戻す */
   align-items: center;
   margin: 10px 0;
   padding: 8px;
@@ -75,7 +75,16 @@ button,
   border-radius: 50%;
   background-color: rgba(255,255,255,0.1);
 }
-.player-piece .piece { width: 25px; height: 25px; }
+/* プレイヤー情報の駒用スタイル - より詳細なセレクタで上書き */
+.player-info .player-piece .piece {
+  width: 25px;
+  height: 25px;
+  position: static !important;  /* absoluteを上書き */
+  transform: none !important;   /* transformを上書き */
+  top: auto !important;         /* topを上書き */
+  left: auto !important;        /* leftを上書き */
+  backface-visibility: visible !important; /* backface-visibilityを上書き */
+}
 .player-piece.active {
   background-color: rgba(52,152,219,0.5);
   box-shadow: 0 0 10px rgba(52,152,219,0.7);

@@ -15,37 +15,49 @@ export class AnimationManager {
    * @param {(piece:{row, col})=>void} onComplete
    */
   startFlippingAnimation(flipGroups, fromColor, toColor, onComplete) {
-    let totalPieces = 0;
-    let completedPieces = 0;
+    // 最後に置いた駒の位置を取得
+    const lastPiece = this.lastPlacedPiece;
+    if (!lastPiece) return;
 
-    // 総駒数を計算
+    // 全ての駒を1つの配列にフラット化
+    let allPieces = [];
     flipGroups.forEach(group => {
-      totalPieces += group.length;
+      allPieces = allPieces.concat(group);
     });
 
-    // 各グループの駒を処理
-    flipGroups.forEach((group) => {
-      group.forEach((p, idx) => {
-        const delay = idx * 100;
+    // 最後に置いた駒からの距離でソート
+    allPieces.sort((a, b) => {
+      // ユークリッド距離の2乗を計算（平方根は不要）
+      const distA = Math.pow(a.row - lastPiece.row, 2) + Math.pow(a.col - lastPiece.col, 2);
+      const distB = Math.pow(b.row - lastPiece.row, 2) + Math.pow(b.col - lastPiece.col, 2);
+      return distA - distB; // 近い順にソート
+    });
 
-        // 反転開始
+    // 総駒数を記録
+    const totalPieces = allPieces.length;
+    let completedPieces = 0;
+
+    // ソートされた駒を順番に処理
+    allPieces.forEach((p, idx) => {
+      const delay = idx * 100;
+
+      // 反転開始
+      setTimeout(() => {
+        // ViewBoardに反転開始を通知
+        this.viewBoard.startFlipping(p.row, p.col, toColor);
+
+        // 反転完了（500ms後）
         setTimeout(() => {
-          // ViewBoardに反転開始を通知
-          this.viewBoard.startFlipping(p.row, p.col, toColor);
+          // ViewBoardに反転完了を通知
+          this.viewBoard.completeFlipping(p.row, p.col);
 
-          // 反転完了（500ms後）
-          setTimeout(() => {
-            // ViewBoardに反転完了を通知
-            this.viewBoard.completeFlipping(p.row, p.col);
-
-            // カウントアップして全て完了したらコールバック
-            completedPieces++;
-            if (completedPieces >= totalPieces && onComplete) {
-              onComplete(p);
-            }
-          }, 500);
-        }, delay);
-      });
+          // カウントアップして全て完了したらコールバック
+          completedPieces++;
+          if (completedPieces >= totalPieces && onComplete) {
+            onComplete(p);
+          }
+        }, 500);
+      }, delay);
     });
   }
 
