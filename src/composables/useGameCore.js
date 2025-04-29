@@ -60,7 +60,8 @@ export function useGameCore(mode, initialColor) {
   }
   /** 再スタート */
   async function restart(color = playerColor.value) {
-    coreRef.value.reset(color);
+    // resetメソッドが非同期になったのでawaitを使用
+    await coreRef.value.reset(color);
 
     // リセット後、CPUが先手（黒）の場合は自動着手
     // プレイヤーが白を選択した場合、CPUは黒で先手になる

@@ -17,6 +17,7 @@ export class GameCore {
     this.winner         = null;
     this.showPassMessage = false;  // パス表示用のフラグを追加
     this.passPlayer     = null;    // パスするプレイヤーの色
+    this.isResetting    = false;   // リセット中フラグ
 
     this.bitBoard         = new BitBoard();
     this.animationManager = new AnimationManager();
@@ -53,7 +54,7 @@ export class GameCore {
 
   /** 駒を置いてアニメーション→次手 */
   async placePiece(row, col) {
-    if (!this.isValidMove(row, col) || this.isGameOver) return;
+    if (!this.isValidMove(row, col) || this.isGameOver || this.isProcessCancelled) return;
 
     const player    = this.activePlayer;
     const fromColor = player === "black" ? "white" : "black";
@@ -64,6 +65,12 @@ export class GameCore {
 
     // UI アニメーション
     await new Promise((resolve) => {
+      // 処理がキャンセルされた場合は早期リターン
+      if (this.isProcessCancelled) {
+        resolve();
+        return;
+      }
+
       this.animationManager.setLastPlacedPiece(row, col);
 
       // クリックした場所に新しい駒を配置
@@ -77,6 +84,9 @@ export class GameCore {
       );
     });
 
+    // 処理がキャンセルされた場合は早期リターン
+    if (this.isProcessCancelled) return;
+
     // 内部ビットボード更新
     this.bitBoard.applyMove(row, col, player);
 
@@ -86,6 +96,9 @@ export class GameCore {
 
   /** ターン遷移 */
   async _nextTurn() {
+    // 処理がキャンセルされた場合は早期リターン
+    if (this.isProcessCancelled) return;
+
     const next = this.activePlayer === "black" ? "white" : "black";
 
     // パスメッセージをリセット
@@ -100,7 +113,17 @@ export class GameCore {
       this.showPassMessage = true;  // パス表示フラグを設定
 
       // パスメッセージを表示するために十分な時間待機（1.5秒に増加）
-      await new Promise((r) => setTimeout(r, 1500));
+      await new Promise((r) => {
+        // 処理がキャンセルされた場合は早期リターン
+        if (this.isProcessCancelled) {
+          r();
+          return;
+        }
+        setTimeout(r, 1500);
+      });
+
+      // 処理がキャンセルされた場合は早期リターン
+      if (this.isProcessCancelled) return;
 
       // 手番は変わらないが、パスメッセージは消す
       this.showPassMessage = false;
@@ -110,9 +133,14 @@ export class GameCore {
       return;
     }
 
+    // 処理がキャンセルされた場合は早期リターン
+    if (this.isProcessCancelled) return;
+
     if (this.isCpuTurn()) {
       const move = await this.cpuManager.selectMove();
-      if (move) await this.placePiece(move.row, move.col);
+      // 処理がキャンセルされた場合は早期リターン
+      if (this.isProcessCancelled || !move) return;
+      await this.placePiece(move.row, move.col);
     }
   }
 
@@ -124,7 +152,14 @@ export class GameCore {
   }
 
   /** リセット */
-  reset(newColor = this.playerColor) {
+  async reset(newColor = this.playerColor) {
+    // リセット中フラグを設定
+    this.isResetting = true;
+
+    // リセット処理が完了するまで1秒待機
+    // この間に進行中のCPU処理などが完了するのを待つ
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
     this.playerColor     = newColor;
     // オセロのルールでは常に黒が先手
     this.activePlayer    = "black";
@@ -143,5 +178,8 @@ export class GameCore {
       this.cpuManager.updateBitBoard(this.bitBoard);
       this.cpuManager.updatePlayerColor(newColor);
     }
+
+    // リセット中フラグを解除
+    this.isResetting = false;
   }
 }

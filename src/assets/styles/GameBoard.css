@@ -9,6 +9,7 @@
   --pass-bg: #e74c3c;
   --win-bg: #f1c40f;
   --cpu-thinking: #f39c12;
+  --reset-bg: #9b59b6;           /* リセット中の背景色 */
   --overlay-bg: rgba(59, 71, 87, 0.75);
 }
 
@@ -215,6 +216,14 @@ button,
 .status-pass {
   background-color: var(--pass-bg);
   animation: pulse 1s infinite;
+}
+.status-reset {
+  background-color: var(--reset-bg);
+  animation: pulse 1s infinite;
+}
+.reset-message {
+  font-weight: bold;
+  color: var(--text-light);
 }
 .game-over {
   background-color: var(--win-bg);

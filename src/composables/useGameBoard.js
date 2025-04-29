@@ -83,6 +83,7 @@ export function useGameBoard(gameMode, initialPlayerColor) {
     if (!passPlayer.value) return "";
     return ui.colorLabel(passPlayer.value);
   });
+  const isResetting = computed(() => core.core.value?.isResetting ?? false);
 
   /* ────────── expose ────────── */
   return {
@@ -98,6 +99,7 @@ export function useGameBoard(gameMode, initialPlayerColor) {
     isGameOver,
     passPlayer,
     passPlayerLabel,
+    isResetting,
     showColorSelection,
     showHints,
 

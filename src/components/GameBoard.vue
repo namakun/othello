@@ -45,8 +45,11 @@
 
     <!-- ゲーム情報 -->
     <div class="game-info">
-      <div class="status-message" :class="{ 'status-pass': showPassMessage }">
-        <template v-if="showPassMessage"> {{ passPlayerLabel }} の手番をスキップします </template>
+      <div class="status-message" :class="{ 'status-pass': showPassMessage, 'status-reset': isResetting }">
+        <template v-if="isResetting">
+          <span class="reset-message">リセット中...</span>
+        </template>
+        <template v-else-if="showPassMessage"> {{ passPlayerLabel }} の手番をスキップします </template>
         <template v-else-if="isGameOver">
           <span class="game-over">ゲーム終了！ 勝者: {{ winnerLabel }}</span>
         </template>
@@ -91,6 +94,7 @@ const {
   isGameOver,
   showPassMessage,
   passPlayerLabel,
+  isResetting,
 
   /* helpers */
   isValidMove,
