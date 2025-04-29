@@ -1,4 +1,9 @@
 /node_modules
-/public/wasm/
+# /public/wasm/ - コミットするためにコメントアウト
 /dist/
 /wasm/target
+/python/__pycache__/
+/python/rust/target/
+/python/venv/
+/python/
+/reversi*
