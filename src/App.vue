@@ -93,30 +93,18 @@ body {
   margin: 0;
   padding: 0;
   width: 100%;
+  overflow-x: hidden; /* 横スクロールを無効化 */
+  overflow-y: auto; /* 縦スクロールを有効化 */
+  min-height: 100%;
 }
 
 html {
   height: 100%;
+  overflow-x: hidden; /* 横スクロールを無効化 */
+  overflow-y: auto; /* 縦スクロールを有効化 */
 }
 
-/* PC版ではスクロールを無効化、スマホ版では有効化 */
-@media (min-width: 701px) {
-  body, html {
-    overflow: hidden;
-    height: 100%;
-  }
-}
-
-/* スマホ版ではスクロールを有効化 */
-@media (max-width: 700px) {
-  body, html {
-    overflow-x: hidden;
-    overflow-y: auto;
-    min-height: 100%;
-  }
-
-  .app {
-    min-height: 100vh;
-  }
+.app {
+  min-height: 100vh;
 }
 </style>
