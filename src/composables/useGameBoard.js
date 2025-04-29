@@ -74,6 +74,16 @@ export function useGameBoard(gameMode, initialPlayerColor) {
     showHints.value = true;
   }
 
+  /* ────────── 追加のリアクティブ値 ────────── */
+  const showPassMessage = computed(() => core.core.value?.showPassMessage ?? false);
+  const isGameOver = computed(() => core.core.value?.isGameOver ?? false);
+  const winnerLabel = computed(() => ui.winnerLabel);
+  const passPlayer = computed(() => core.core.value?.passPlayer);
+  const passPlayerLabel = computed(() => {
+    if (!passPlayer.value) return "";
+    return ui.colorLabel(passPlayer.value);
+  });
+
   /* ────────── expose ────────── */
   return {
     // state
@@ -84,8 +94,10 @@ export function useGameBoard(gameMode, initialPlayerColor) {
     opponentColor,
     playerScore,
     opponentScore,
-    showPassMessage: core.core.value?.showPassMessage,
-    isGameOver: core.core.value?.isGameOver,
+    showPassMessage,
+    isGameOver,
+    passPlayer,
+    passPlayerLabel,
     showColorSelection,
     showHints,
 

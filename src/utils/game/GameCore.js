@@ -10,11 +10,13 @@ export class GameCore {
    * @param {"black"|"white"}              playerColor
    */
   constructor(mode, playerColor) {
-    this.mode         = mode;
-    this.playerColor  = playerColor;
-    this.activePlayer = "black";
-    this.isGameOver   = false;
-    this.winner       = null;
+    this.mode           = mode;
+    this.playerColor    = playerColor;
+    this.activePlayer   = "black";
+    this.isGameOver     = false;
+    this.winner         = null;
+    this.showPassMessage = false;  // パス表示用のフラグを追加
+    this.passPlayer     = null;    // パスするプレイヤーの色
 
     this.bitBoard         = new BitBoard();
     this.animationManager = new AnimationManager();
@@ -86,11 +88,23 @@ export class GameCore {
   async _nextTurn() {
     const next = this.activePlayer === "black" ? "white" : "black";
 
+    // パスメッセージをリセット
+    this.showPassMessage = false;
+    this.passPlayer = null;
+
     if (this.hasValidMoves(next)) {
       this.activePlayer = next;
     } else if (this.hasValidMoves(this.activePlayer)) {
       // パス演出
-      await new Promise((r) => setTimeout(r, 600));
+      this.passPlayer = next;  // パスするプレイヤーの色を設定（次の手番の色）
+      this.showPassMessage = true;  // パス表示フラグを設定
+
+      // パスメッセージを表示するために十分な時間待機（1.5秒に増加）
+      await new Promise((r) => setTimeout(r, 1500));
+
+      // 手番は変わらないが、パスメッセージは消す
+      this.showPassMessage = false;
+      this.passPlayer = null;
     } else {
       this._finishGame();
       return;
@@ -111,11 +125,13 @@ export class GameCore {
 
   /** リセット */
   reset(newColor = this.playerColor) {
-    this.playerColor  = newColor;
+    this.playerColor     = newColor;
     // オセロのルールでは常に黒が先手
-    this.activePlayer = "black";
-    this.isGameOver   = false;
-    this.winner       = null;
+    this.activePlayer    = "black";
+    this.isGameOver      = false;
+    this.winner          = null;
+    this.showPassMessage = false;  // パス表示フラグもリセット
+    this.passPlayer      = null;   // パスするプレイヤーの色もリセット
 
     this.bitBoard.initialize();
     this.animationManager.reset();

@@ -46,7 +46,7 @@
     <!-- ゲーム情報 -->
     <div class="game-info">
       <div class="status-message" :class="{ 'status-pass': showPassMessage }">
-        <template v-if="showPassMessage"> {{ currentPlayerLabel }} の手番をスキップします </template>
+        <template v-if="showPassMessage"> {{ passPlayerLabel }} の手番をスキップします </template>
         <template v-else-if="isGameOver">
           <span class="game-over">ゲーム終了！ 勝者: {{ winnerLabel }}</span>
         </template>
@@ -90,6 +90,7 @@ const {
   isCpuThinking,
   isGameOver,
   showPassMessage,
+  passPlayerLabel,
 
   /* helpers */
   isValidMove,
