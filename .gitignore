@@ -1,5 +1,4 @@
 /node_modules
-# /public/wasm/ - コミットするためにコメントアウト
 /dist/
 /wasm/target
 /python/__pycache__/
