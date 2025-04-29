@@ -13,8 +13,8 @@ export const GAME_MODES = [
   },
   {
     id: "cpu-normal",
-    name: "CPU (強い)",
-    description: "強いレベルのCPU対戦相手と対戦します",
+    name: "CPU (普通)",
+    description: "普通レベルのCPU対戦相手と対戦します",
     icon: "🤖",
   },
   {
