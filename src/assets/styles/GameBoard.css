@@ -19,6 +19,8 @@
   background-color: var(--board-bg);
   border-radius: 8px;
   color: var(--text-light);
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .button-container {
@@ -57,28 +59,29 @@ button,
   display: flex;
   justify-content: center;  /* 中央揃えに戻す */
   align-items: center;
-  margin: 10px 0;
-  padding: 8px;
+  margin: min(10px, 1.5vh) 0;
+  padding: min(8px, 1.5vw);
   background-color: rgba(255,255,255,0.1);
   border-radius: 8px;
 }
-.player-info.opponent { margin-bottom: 15px; }
-.player-info.current-player { margin-top: 15px; }
+.player-info.opponent { margin-bottom: min(15px, 2vh); }
+.player-info.current-player { margin-top: min(15px, 2vh); }
 
 .player-piece {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px; height: 30px;
-  padding: 4px;
-  margin-right: 20px;
+  width: min(30px, 4vmin);
+  height: min(30px, 4vmin);
+  padding: min(4px, 0.5vmin);
+  margin-right: min(20px, 3vw);
   border-radius: 50%;
   background-color: rgba(255,255,255,0.1);
 }
 /* プレイヤー情報の駒用スタイル - より詳細なセレクタで上書き */
 .player-info .player-piece .piece {
-  width: 25px;
-  height: 25px;
+  width: min(25px, 3.5vmin);
+  height: min(25px, 3.5vmin);
   position: static !important;  /* absoluteを上書き */
   transform: none !important;   /* transformを上書き */
   top: auto !important;         /* topを上書き */
@@ -92,7 +95,7 @@ button,
 }
 
 .player-score {
-  font-size: 1.2em;
+  font-size: clamp(0.9em, 3vw, 1.2em);
   font-weight: bold;
 }
 
@@ -108,7 +111,8 @@ button,
 
 /* --- セル --- */
 .board-cell {
-  width: 50px; height: 50px;
+  width: min(50px, 6vmin);
+  height: min(50px, 6vmin);
   background-color: var(--board-cell-bg);
   border: 1px solid var(--board-bg);
   display: flex;
@@ -122,7 +126,8 @@ button,
 
 /* --- 駒コンテナ --- */
 .piece-container {
-  width: 40px; height: 40px;
+  width: min(40px, 5vmin);
+  height: min(40px, 5vmin);
   position: relative;
   transform-style: preserve-3d;
   transform: rotateY(0deg);
@@ -140,7 +145,8 @@ button,
 
 /* --- 駒（表裏共通） --- */
 .piece {
-  width: 40px; height: 40px;
+  width: min(40px, 5vmin);
+  height: min(40px, 5vmin);
   border-radius: 50%;
   position: absolute;
   /* 駒を中央に配置 */
@@ -168,19 +174,21 @@ button,
 /* --- 有効手インジケーター --- */
 .valid-move-indicator {
   position: absolute;
-  width: 16px; height: 16px;
+  width: min(16px, 2vmin);
+  height: min(16px, 2vmin);
   border-radius: 50%;
   background-color: rgba(255,255,255,0.3);
 }
 
 /* --- ゲーム情報 --- */
 .game-info {
-  margin-top: 10px;
+  margin-top: min(10px, 1.5vh);
   text-align: center;
-  font-size: 1.2em;
+  font-size: clamp(0.9em, 3vw, 1.2em);
 }
 .status-message {
-  padding: 10px; margin: 10px 0;
+  padding: min(10px, 1.5vw);
+  margin: min(10px, 1.5vh) 0;
   border-radius: 4px;
   background-color: rgba(255,255,255,0.1);
 }
@@ -198,9 +206,9 @@ button,
 .restart-button,
 .menu-button {
   color: #fff;
-  padding: 8px 16px;
+  padding: min(8px, 1.5vw) min(16px, 3vw);
   border-radius: 4px;
-  font-size: 1em;
+  font-size: clamp(0.8em, 2.5vw, 1em);
 }
 .restart-button {
   background-color: var(--accent);
