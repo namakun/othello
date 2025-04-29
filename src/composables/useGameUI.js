@@ -20,7 +20,6 @@ export function useGameUI(gameCore, showHints) {
 
   /* ────────── プレイヤー／ラベル ────────── */
   function colorLabel(color) {
-    console.log(color)
     return { black: "黒", white: "白", draw: "引き分け" }[color] ?? "不明";
   }
   const currentPlayerLabel = computed(() => colorLabel(isCpuThinking.value ? (activePlayer.value === "black" ? "white" : "black") : activePlayer.value));

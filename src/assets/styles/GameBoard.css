@@ -59,7 +59,7 @@ button,
 /* --- プレイヤー情報 --- */
 .player-info {
   display: flex;
-  justify-content: center;
+  justify-content: center; /* 中央揃えに戻す */
   align-items: center;
   margin: 8px 0;
   padding: 6px;
@@ -99,6 +99,25 @@ button,
 .player-score {
   font-size: 1em;
   font-weight: bold;
+  display: flex;
+  align-items: center;
+  margin-left: 8px; /* コマとの距離を縮める */
+  width: 80px; /* 固定幅を設定 */
+  justify-content: flex-start; /* 内部は左揃え */
+}
+
+.score-label {
+  margin-right: 3px;
+}
+
+.score-value {
+  font-family: 'Courier New', monospace; /* 等幅フォントを使用 */
+  min-width: 1.5em; /* 2桁の数字が入る幅 */
+  display: inline-block;
+  text-align: left; /* 左揃え */
+  vertical-align: middle; /* 垂直方向の配置を中央に */
+  position: relative;
+  top: 1px; /* 微調整 */
 }
 
 /* --- ボード --- */

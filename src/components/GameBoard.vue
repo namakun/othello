@@ -11,7 +11,10 @@
       <div class="player-piece" :class="{ active: isCpuThinking }">
         <div class="piece" :class="pieceClasses(opponentColor)" />
       </div>
-      <div class="player-score">{{ colorLabel(opponentColor) }}: {{ opponentScore }}</div>
+      <div class="player-score">
+        <span class="score-label">{{ colorLabel(opponentColor) }}：</span>
+        <span class="score-value">{{ opponentScore }}</span>
+      </div>
     </div>
 
     <!-- 盤面 -->
@@ -34,7 +37,10 @@
       <div class="player-piece" :class="{ active: !isCpuThinking }">
         <div class="piece" :class="pieceClasses(playerColorInGame)" />
       </div>
-      <div class="player-score">{{ colorLabel(playerColorInGame) }}: {{ playerScore }}</div>
+      <div class="player-score">
+        <span class="score-label">{{ colorLabel(playerColorInGame) }}：</span>
+        <span class="score-value">{{ playerScore }}</span>
+      </div>
     </div>
 
     <!-- ゲーム情報 -->
