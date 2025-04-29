@@ -13,14 +13,14 @@ export const GAME_MODES = [
   },
   {
     id: "cpu-normal",
-    name: "CPU (普通)",
-    description: "普通のレベルのCPU対戦相手と対戦します",
+    name: "CPU (強い)",
+    description: "強いレベルのCPU対戦相手と対戦します",
     icon: "🤖",
   },
   {
     id: "cpu-strong",
-    name: "CPU (強)",
-    description: "強いレベルのCPU対戦相手と対戦します",
+    name: "CPU (最弱)",
+    description: "最弱レベルのCPU対戦相手と対戦します",
     icon: "🤖",
   },
 ];

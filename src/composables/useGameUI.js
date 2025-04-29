@@ -22,7 +22,10 @@ export function useGameUI(gameCore, showHints) {
   function colorLabel(color) {
     return { black: "黒", white: "白", draw: "引き分け" }[color] ?? "不明";
   }
-  const currentPlayerLabel = computed(() => colorLabel(isCpuThinking.value ? (activePlayer.value === "black" ? "white" : "black") : activePlayer.value));
+  const currentPlayerLabel = computed(() => {
+    // CPUの思考中でも、実際のアクティブプレイヤーの色を表示する
+    return colorLabel(activePlayer.value);
+  });
   const winnerLabel = computed(() => {
     const w = core.value?.winner;
     return w ? colorLabel(w) : "";
@@ -30,7 +33,8 @@ export function useGameUI(gameCore, showHints) {
 
   /* ────────── 合法手判定 ────────── */
   function isValidMove(row, col) {
-    if (!showHints.value || core.value?.isGameOver) return false;
+    // CPUの思考中（CPUの手番）の場合は合法手を表示しない
+    if (!showHints.value || core.value?.isGameOver || isCpuThinking.value) return false;
     return core.value?.isValidMove(row, col) ?? false;
   }
 

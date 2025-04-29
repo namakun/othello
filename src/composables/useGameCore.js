@@ -18,7 +18,9 @@ export function useGameCore(mode, initialColor) {
     coreRef.value = new GameCore(mode, playerColor.value);
 
     // CPU が先手なら自動着手（必要に応じ実装を置き換え）
+    // プレイヤーが白を選択した場合、CPUは黒で先手になる
     if (coreRef.value.isCpuTurn()) {
+      // CPUの手番が正しく設定されていることを確認
       const move = await coreRef.value.cpuManager.selectMove();
       if (move) await coreRef.value.placePiece(move.row, move.col);
     }
@@ -57,8 +59,16 @@ export function useGameCore(mode, initialColor) {
     await coreRef.value.placePiece(row, col);
   }
   /** 再スタート */
-  function restart(color = playerColor.value) {
+  async function restart(color = playerColor.value) {
     coreRef.value.reset(color);
+
+    // リセット後、CPUが先手（黒）の場合は自動着手
+    // プレイヤーが白を選択した場合、CPUは黒で先手になる
+    if (coreRef.value.isCpuTurn()) {
+      // CPUの手番が正しく設定されていることを確認
+      const move = await coreRef.value.cpuManager.selectMove();
+      if (move) await coreRef.value.placePiece(move.row, move.col);
+    }
   }
 
   return {

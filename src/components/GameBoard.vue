@@ -109,8 +109,8 @@ const {
 } = useGameBoard(props.gameMode, toRef(props, "playerColor"));
 
 /* ────────── local handlers ────────── */
-function onColorSelected(color) {
-  handleColorSelected(color);
+async function onColorSelected(color) {
+  await handleColorSelected(color);
   emit("update:playerColor", color);
 }
 function returnToMenu() {

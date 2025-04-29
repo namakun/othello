@@ -29,7 +29,8 @@ export function useGameBoard(gameMode, initialPlayerColor) {
   async function initializeGame() {
     await wasmReady.catch(() => {});
     showHints.value = true;
-    showColorSelection.value = gameMode.startsWith("cpu-");
+    // CPUモードで、かつプレイヤーの色が設定されていない場合のみ色選択ダイアログを表示
+    showColorSelection.value = gameMode.startsWith("cpu-") && !currentPlayerColor.value;
     await core.init();
   }
 
@@ -56,18 +57,20 @@ export function useGameBoard(gameMode, initialPlayerColor) {
   const opponentScore = computed(() => (playerColorInGame.value === "black" ? ui.whiteScore.value : ui.blackScore.value));
 
   /* ────────── 再スタート / 色選択 ────────── */
-  function handleRestart() {
+  async function handleRestart() {
     if (core.core.value.isCpuMode()) {
       showColorSelection.value = true;
     } else {
-      core.restart();
+      await core.restart();
       showHints.value = true;
     }
   }
-  function handleColorSelected(color) {
+  async function handleColorSelected(color) {
     currentPlayerColor.value = color;
     showColorSelection.value = false;
-    core.restart(color);
+    // restart関数は非同期関数なので、awaitを使用する
+    // restart関数内でCPUの自動着手も行われるので、ここでは追加の処理は不要
+    await core.restart(color);
     showHints.value = true;
   }
 

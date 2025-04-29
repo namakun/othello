@@ -29,7 +29,10 @@ export class GameCore {
   // ────────────── ラッパ ──────────────
 
   isCpuMode()          { return this.mode.startsWith("cpu-"); }
-  isCpuTurn()          { return this.isCpuMode() && this.activePlayer !== this.playerColor; }
+  isCpuTurn()          {
+    // CPUモードで、かつ現在の手番がプレイヤーの色と異なる場合にCPUの手番
+    return this.isCpuMode() && this.activePlayer !== this.playerColor;
+  }
   hasValidMoves(color) { return this.bitBoard.hasValidMoves(color); }
   score()              { return this.bitBoard.score(); }
 
@@ -109,6 +112,7 @@ export class GameCore {
   /** リセット */
   reset(newColor = this.playerColor) {
     this.playerColor  = newColor;
+    // オセロのルールでは常に黒が先手
     this.activePlayer = "black";
     this.isGameOver   = false;
     this.winner       = null;
