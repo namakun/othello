@@ -63,7 +63,7 @@ export default {
 .app {
   font-family: Arial, sans-serif;
   text-align: center;
-  padding: min(20px, 4vw);
+  padding: 15px;
   color: #333;
   min-height: 100vh;
   box-sizing: border-box;
@@ -75,35 +75,48 @@ export default {
 .game-container {
   display: flex;
   justify-content: center;
-  align-items: flex-start;
-  margin-top: min(20px, 3vh);
+  align-items: flex-start; /* 上部揃えに変更 */
+  margin-top: 15px;
   flex: 1;
   width: 100%;
-  overflow-x: hidden;
+  overflow: hidden;
 }
 
 h1 {
   color: #333;
-  margin: 0 0 min(20px, 3vh) 0;
-  font-size: clamp(1.5em, 5vw, 2.5em);
+  margin: 0 0 15px 0;
+  font-size: 2em;
 }
 
 /* ページ全体のリセット */
 body {
   margin: 0;
   padding: 0;
-  overflow-x: hidden;
   width: 100%;
 }
 
-/* メディアクエリ - 小さい画面用 */
-@media (max-width: 480px) {
-  .app {
-    padding: 10px;
+html {
+  height: 100%;
+}
+
+/* PC版ではスクロールを無効化、スマホ版では有効化 */
+@media (min-width: 701px) {
+  body, html {
+    overflow: hidden;
+    height: 100%;
+  }
+}
+
+/* スマホ版ではスクロールを有効化 */
+@media (max-width: 700px) {
+  body, html {
+    overflow-x: hidden;
+    overflow-y: auto;
+    min-height: 100%;
   }
 
-  h1 {
-    margin-bottom: 10px;
+  .app {
+    min-height: 100vh;
   }
 }
 </style>

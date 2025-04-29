@@ -7,6 +7,8 @@
   border-radius: 8px;
   color: #ecf0f1;
   box-sizing: border-box;
+  transform: scale(0.85);
+  transform-origin: top center;
 }
 
 /* 見出し */
@@ -98,21 +100,40 @@
 }
 
 /* レスポンシブ対応 */
-/* スマホ幅（<=600px）：1 列 */
-@media (max-width: 600px) {
+/* スマホ幅：1 列 - スケール変換を考慮して閾値を調整 */
+@media (max-width: 700px) {
   .mode-options {
     grid-template-columns: 1fr;
   }
-}
 
-/* タブレット幅（<=1024px）：2 列 */
-@media (max-width: 1024px) {
-  .mode-options {
-    grid-template-columns: repeat(2, 1fr);
+  /* スマホ版ではスケールを解除して自然なサイズに */
+  .mode-selection {
+    transform: none;
+    width: 90%;
+    padding: 15px;
+  }
+
+  /* 各モードオプションの調整 */
+  .mode-option {
+    min-width: auto;
+    width: 100%;
+    padding: 12px;
   }
 }
 
-/* 中程度画面（<=1200px）：ボタン内フォント縮小など */
+/* タブレット幅：2 列 - スケール変換を考慮して閾値を調整 */
+@media (min-width: 701px) and (max-width: 1200px) {
+  .mode-options {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* タブレット版でもスケールを調整 */
+  .mode-selection {
+    transform: scale(0.9);
+  }
+}
+
+/* 中程度画面：ボタン内フォント縮小など */
 @media (max-width: 1200px) {
   .mode-option {
     padding: 10px;
