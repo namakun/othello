@@ -32,7 +32,17 @@ export class AlphaBetaCPU extends BaseCPU {
     /**
      * 終盤（40手以降）は探索深さを増やす
      */
-    const depth = totalPieces >= 40 ? 6 : 3;
+    let depth;
+    if (totalPieces >= 51) {
+      // 終盤は完全読み（最大16手）
+      depth = Math.min(64 - totalPieces, 12);
+    } else if (totalPieces >= 41) {
+      depth = 12;
+    } else if (totalPieces >= 21) {
+      depth = 10;
+    } else {
+      depth = 6;
+    }
 
     for (const mv of moves) {
       const board = this.cloneBoard();

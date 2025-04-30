@@ -21,7 +21,7 @@
 │     ├─ BaseCPU.js           # ── 共通評価／合法手取得／クローン機能
 │     ├─ RandomCPU.js         # ── ランダム CPU
 │     ├─ AlphaBetaCPU.js      # ── α-β 剪定 CPU
-│     └─ ReinforcementCPU.js  # ── 強化学習予定 CPU (現状ランダム)
+│     └─ WeakestCPU.js        # ── 意図的に弱い AI（角を避け、X打ち・C打ちを優先）
 │
 ├─ constants
 │  └─ gameConfig.js           # ── ゲームモード定義（local/cpu-weak/…）
@@ -140,8 +140,12 @@
 - `selectMove()`: α-β剪定で最適な手を選択
 - `alphaBeta(board, depth, alpha, beta, maximizing)`: α-β剪定アルゴリズム
 
-### ReinforcementCPU.js
-- `selectMove()`: 強化学習（現状はランダム）で手を選択
+### WeakestCPU.js
+- `constructor(bitBoard, color)`: 最弱CPUの初期化とモデルのロード
+- `loadModel()`: 強化学習モデルをロード
+- `boardToInput(board)`: 盤面を3チャンネルの入力形式に変換
+- `predictPolicy(input)`: モデルを使用して方策を予測
+- `selectMove()`: 意図的に弱い手を選択（角を避け、X打ち・C打ちを優先）
 
 ## Vue レイヤー
 
