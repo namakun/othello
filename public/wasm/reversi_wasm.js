@@ -82,13 +82,18 @@ function getDataViewMemory0() {
     }
     return cachedDataViewMemory0;
 }
-
+/**
+ * パニック時にブラウザコンソールにエラーを表示するためのフック設定
+ */
 export function init_panic_hook() {
     wasm.init_panic_hook();
 }
 
 /**
  * 合法手ビットボード生成
+ * @param p 自分の石のビットボード
+ * @param o 相手の石のビットボード
+ * @return 合法手のビットボード
  * @param {bigint} p
  * @param {bigint} o
  * @returns {bigint}
@@ -96,6 +101,22 @@ export function init_panic_hook() {
 export function gen_legal_moves(p, o) {
     const ret = wasm.gen_legal_moves(p, o);
     return BigInt.asUintN(64, ret);
+}
+
+/**
+ * 方向別「反転 index 配列」を Array<Uint8Array> で返す
+ * @param p 自分の石のビットボード
+ * @param o 相手の石のビットボード
+ * @param pos 着手位置
+ * @return 方向別の反転インデックス配列
+ * @param {bigint} p
+ * @param {bigint} o
+ * @param {number} pos
+ * @returns {Array<any>}
+ */
+export function gen_flip_groups(p, o, pos) {
+    const ret = wasm.gen_flip_groups(p, o, pos);
+    return ret;
 }
 
 let cachedBigUint64ArrayMemory0 = null;
@@ -112,34 +133,11 @@ function getArrayU64FromWasm0(ptr, len) {
     return getBigUint64ArrayMemory0().subarray(ptr / 8, ptr / 8 + len);
 }
 /**
- * 方向別「反転ビットマスク」を Vec<u64> で返す（旧 API）
- * TODO Deprecate
- * @param {bigint} p
- * @param {bigint} o
- * @param {number} pos
- * @returns {BigUint64Array}
- */
-export function gen_flip_bitboards(p, o, pos) {
-    const ret = wasm.gen_flip_bitboards(p, o, pos);
-    var v1 = getArrayU64FromWasm0(ret[0], ret[1]).slice();
-    wasm.__wbindgen_free(ret[0], ret[1] * 8, 8);
-    return v1;
-}
-
-/**
- * ★新 API: 方向別「反転 index 配列」を Array<Uint8Array> で返す
- * @param {bigint} p
- * @param {bigint} o
- * @param {number} pos
- * @returns {Array<any>}
- */
-export function gen_flip_groups(p, o, pos) {
-    const ret = wasm.gen_flip_groups(p, o, pos);
-    return ret;
-}
-
-/**
  * 着手適用（反転も含めた次盤面を返す）
+ * @param p 自分の石のビットボード
+ * @param o 相手の石のビットボード
+ * @param pos 着手位置
+ * @return [新しい自分の石のビットボード, 新しい相手の石のビットボード]
  * @param {bigint} p
  * @param {bigint} o
  * @param {number} pos
@@ -154,6 +152,8 @@ export function apply_move(p, o, pos) {
 
 /**
  * 石数 (スコア) を数える
+ * @param x ビットボード
+ * @return 立っているビットの数
  * @param {bigint} x
  * @returns {number}
  */
@@ -164,6 +164,9 @@ export function popcnt64(x) {
 
 /**
  * 合法手が存在するか
+ * @param p 自分の石のビットボード
+ * @param o 相手の石のビットボード
+ * @return 合法手が存在する場合true
  * @param {bigint} p
  * @param {bigint} o
  * @returns {boolean}

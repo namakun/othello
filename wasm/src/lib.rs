@@ -105,21 +105,6 @@ pub fn gen_legal_moves(p: u64, o: u64) -> u64 {
     moves
 }
 
-/// 方向別「反転ビットマスク」を Vec<u64> で返す（旧 API）
-/// @deprecated 新APIのgen_flip_groupsを使用してください
-/// @param p 自分の石のビットボード
-/// @param o 相手の石のビットボード
-/// @param pos 着手位置
-/// @return 方向別の反転ビットマスク配列
-#[wasm_bindgen]
-pub fn gen_flip_bitboards(p: u64, o: u64, pos: u32) -> Vec<u64> {
-    let mask = 1u64 << pos;
-    DIRS.iter()
-        .enumerate()
-        .map(|(i, _)| kogge_stone_flips(mask, p, o, i))
-        .collect()
-}
-
 /// 方向別「反転 index 配列」を Array<Uint8Array> で返す
 /// @param p 自分の石のビットボード
 /// @param o 相手の石のビットボード

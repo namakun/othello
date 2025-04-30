@@ -1,29 +1,43 @@
 /* tslint:disable */
 /* eslint-disable */
+/**
+ * パニック時にブラウザコンソールにエラーを表示するためのフック設定
+ */
 export function init_panic_hook(): void;
 /**
  * 合法手ビットボード生成
+ * @param p 自分の石のビットボード
+ * @param o 相手の石のビットボード
+ * @return 合法手のビットボード
  */
 export function gen_legal_moves(p: bigint, o: bigint): bigint;
 /**
- * 方向別「反転ビットマスク」を Vec<u64> で返す（旧 API）
- * TODO Deprecate
- */
-export function gen_flip_bitboards(p: bigint, o: bigint, pos: number): BigUint64Array;
-/**
- * ★新 API: 方向別「反転 index 配列」を Array<Uint8Array> で返す
+ * 方向別「反転 index 配列」を Array<Uint8Array> で返す
+ * @param p 自分の石のビットボード
+ * @param o 相手の石のビットボード
+ * @param pos 着手位置
+ * @return 方向別の反転インデックス配列
  */
 export function gen_flip_groups(p: bigint, o: bigint, pos: number): Array<any>;
 /**
  * 着手適用（反転も含めた次盤面を返す）
+ * @param p 自分の石のビットボード
+ * @param o 相手の石のビットボード
+ * @param pos 着手位置
+ * @return [新しい自分の石のビットボード, 新しい相手の石のビットボード]
  */
 export function apply_move(p: bigint, o: bigint, pos: number): BigUint64Array;
 /**
  * 石数 (スコア) を数える
+ * @param x ビットボード
+ * @return 立っているビットの数
  */
 export function popcnt64(x: bigint): number;
 /**
  * 合法手が存在するか
+ * @param p 自分の石のビットボード
+ * @param o 相手の石のビットボード
+ * @return 合法手が存在する場合true
  */
 export function has_moves(p: bigint, o: bigint): boolean;
 
@@ -33,7 +47,6 @@ export interface InitOutput {
   readonly memory: WebAssembly.Memory;
   readonly init_panic_hook: () => void;
   readonly gen_legal_moves: (a: bigint, b: bigint) => bigint;
-  readonly gen_flip_bitboards: (a: bigint, b: bigint, c: number) => [number, number];
   readonly gen_flip_groups: (a: bigint, b: bigint, c: number) => any;
   readonly apply_move: (a: bigint, b: bigint, c: number) => [number, number];
   readonly popcnt64: (a: bigint) => number;

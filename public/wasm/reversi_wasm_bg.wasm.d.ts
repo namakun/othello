@@ -3,7 +3,6 @@
 export const memory: WebAssembly.Memory;
 export const init_panic_hook: () => void;
 export const gen_legal_moves: (a: bigint, b: bigint) => bigint;
-export const gen_flip_bitboards: (a: bigint, b: bigint, c: number) => [number, number];
 export const gen_flip_groups: (a: bigint, b: bigint, c: number) => any;
 export const apply_move: (a: bigint, b: bigint, c: number) => [number, number];
 export const popcnt64: (a: bigint) => number;

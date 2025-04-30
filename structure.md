@@ -54,7 +54,6 @@
 - `kogge_stone_flips(mask, p, o, idx)`: １方向の反転列計算 (Kogge-Stone法)
 - `compute_flip_mask(p, o, pos)`: ８方向すべての反転マスクを集計
 - `gen_legal_moves(p, o)`: 合法手ビットボード生成
-- `gen_flip_bitboards(p, o, pos)`: 方向別「反転ビットマスク」を返す（旧API）
 - `gen_flip_groups(p, o, pos)`: 方向別「反転 index 配列」を返す
 - `apply_move(p, o, pos)`: 着手適用（反転も含めた次盤面を返す）
 - `popcnt64(x)`: 石数 (スコア) を数える
