@@ -46,8 +46,12 @@ export class AnimationManager {
     const distanceGroups = new Map();
 
     allPieces.forEach(p => {
-      // ユークリッド距離の2乗を計算（平方根は不要）
-      const distance = Math.pow(p.row - lastPiece.row, 2) + Math.pow(p.col - lastPiece.col, 2);
+      // チェビシェフ距離を計算（縦横の移動量の最大値）
+      // これにより、縦・横・斜めの距離1の駒が同じグループとして扱われる
+      const distance = Math.max(
+        Math.abs(p.row - lastPiece.row),
+        Math.abs(p.col - lastPiece.col)
+      );
 
       if (!distanceGroups.has(distance)) {
         distanceGroups.set(distance, []);
