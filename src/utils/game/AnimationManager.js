@@ -40,15 +40,24 @@ export class AnimationManager {
     });
 
     /**
-     * 最後に置いた駒からの距離でソート
-     * 近い順に反転アニメーションを実行するため
+     * 駒を距離ごとにグループ化
+     * 同じ距離の駒は同時にひっくり返すため
      */
-    allPieces.sort((a, b) => {
+    const distanceGroups = new Map();
+
+    allPieces.forEach(p => {
       // ユークリッド距離の2乗を計算（平方根は不要）
-      const distA = Math.pow(a.row - lastPiece.row, 2) + Math.pow(a.col - lastPiece.col, 2);
-      const distB = Math.pow(b.row - lastPiece.row, 2) + Math.pow(b.col - lastPiece.col, 2);
-      return distA - distB; // 近い順にソート
+      const distance = Math.pow(p.row - lastPiece.row, 2) + Math.pow(p.col - lastPiece.col, 2);
+
+      if (!distanceGroups.has(distance)) {
+        distanceGroups.set(distance, []);
+      }
+
+      distanceGroups.get(distance).push(p);
     });
+
+    // 距離でソートされたグループの配列を作成
+    const sortedDistances = Array.from(distanceGroups.keys()).sort((a, b) => a - b);
 
     /**
      * 総駒数を記録
@@ -57,34 +66,37 @@ export class AnimationManager {
     let completedPieces = 0;
 
     /**
-     * ソートされた駒を順番に処理
+     * 距離グループごとに処理
      */
-    allPieces.forEach((p, idx) => {
-      const delay = idx * 100;
+    sortedDistances.forEach((distance, groupIdx) => {
+      const pieces = distanceGroups.get(distance);
+      const delay = groupIdx * 100; // グループごとに遅延を設定
 
       /**
-       * 反転開始
+       * 同じ距離の駒は同時に反転開始
        */
-      setTimeout(() => {
-        // ViewBoardに反転開始を通知
-        this.viewBoard.startFlipping(p.row, p.col, toColor);
-
-        /**
-         * 反転完了（500ms後）
-         */
+      pieces.forEach(p => {
         setTimeout(() => {
-          // ViewBoardに反転完了を通知
-          this.viewBoard.completeFlipping(p.row, p.col);
+          // ViewBoardに反転開始を通知
+          this.viewBoard.startFlipping(p.row, p.col, toColor);
 
           /**
-           * カウントアップして全て完了したらコールバック
+           * 反転完了（500ms後）
            */
-          completedPieces++;
-          if (completedPieces >= totalPieces && onComplete) {
-            onComplete(p);
-          }
-        }, 500);
-      }, delay);
+          setTimeout(() => {
+            // ViewBoardに反転完了を通知
+            this.viewBoard.completeFlipping(p.row, p.col);
+
+            /**
+             * カウントアップして全て完了したらコールバック
+             */
+            completedPieces++;
+            if (completedPieces >= totalPieces && onComplete) {
+              onComplete(p);
+            }
+          }, 500);
+        }, delay);
+      });
     });
   }
 
