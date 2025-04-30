@@ -4,7 +4,7 @@
  */
 import { RandomCPU } from '../cpu/RandomCPU';
 import { AlphaBetaCPU } from '../cpu/AlphaBetaCPU';
-import { ReinforcementCPU } from '../cpu/ReinforcementCPU';
+import { WeakestCPU } from '../cpu/WeakestCPU';
 
 /**
  * CPUプレイヤーを管理するクラス
@@ -41,7 +41,7 @@ export class CPUManager {
       case "cpu-normal":
         return new AlphaBetaCPU(this.bitBoard, cpuColor);
       case "cpu-strong":
-        return new ReinforcementCPU(this.bitBoard, cpuColor);
+        return new WeakestCPU(this.bitBoard, cpuColor);
       default:
         return null;
     }
