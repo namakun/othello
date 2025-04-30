@@ -1,4 +1,7 @@
-<!-- File: src/components/GameBoard.vue -->
+<!--
+  src/components/GameBoard.vue
+  オセロゲームのメインボード画面コンポーネント
+-->
 <template>
   <div class="game-board">
     <!-- CPU 色選択ダイアログ -->
@@ -6,7 +9,7 @@
       <ColorSelection :selected-color="playerColorInGame" @color-selected="onColorSelected" />
     </div>
 
-    <!-- 相手プレイヤー -->
+    <!-- 相手プレイヤー情報 -->
     <div class="player-info opponent">
       <div class="player-piece" :class="{ active: isCpuThinking }">
         <div class="piece" :class="pieceClasses(opponentColor)" />
@@ -17,22 +20,28 @@
       </div>
     </div>
 
-    <!-- 盤面 -->
+    <!-- 盤面（8x8のグリッド） -->
     <div class="board">
       <div v-for="row in 8" :key="row" class="board-row">
-        <div v-for="col in 8" :key="col" class="board-cell" :class="getCellClasses(row - 1, col - 1)" @click="handleCellClick({ row: row - 1, col: col - 1 })">
-          <!-- 駒（2層構造） -->
-          <div v-if="hasPiece({ row: row - 1, col: col - 1 })" class="piece-container" :class="getPieceContainerClasses({ row: row - 1, col: col - 1 })">
+        <div v-for="col in 8"
+             :key="col"
+             class="board-cell"
+             :class="getCellClasses(row - 1, col - 1)"
+             @click="handleCellClick({ row: row - 1, col: col - 1 })">
+          <!-- 駒（2層構造で反転アニメーションを実現） -->
+          <div v-if="hasPiece({ row: row - 1, col: col - 1 })"
+               class="piece-container"
+               :class="getPieceContainerClasses({ row: row - 1, col: col - 1 })">
             <div class="piece front" :class="getFrontPieceClasses({ row: row - 1, col: col - 1 })"></div>
             <div class="piece back" :class="getBackPieceClasses({ row: row - 1, col: col - 1 })"></div>
           </div>
-          <!-- 合法手インジケータ -->
+          <!-- 合法手インジケータ（ヒント表示） -->
           <div v-if="isValidMove(row - 1, col - 1) && showHints" class="valid-move-indicator" />
         </div>
       </div>
     </div>
 
-    <!-- 自分プレイヤー -->
+    <!-- 自分プレイヤー情報 -->
     <div class="player-info current-player">
       <div class="player-piece" :class="{ active: !isCpuThinking }">
         <div class="piece" :class="pieceClasses(playerColorInGame)" />
@@ -43,8 +52,9 @@
       </div>
     </div>
 
-    <!-- ゲーム情報 -->
+    <!-- ゲーム状態表示とボタン -->
     <div class="game-info">
+      <!-- ステータスメッセージ -->
       <div class="status-message" :class="{ 'status-pass': showPassMessage, 'status-reset': isResetting }">
         <template v-if="isResetting">
           <span class="reset-message">リセット中...</span>
@@ -59,6 +69,7 @@
         </template>
       </div>
 
+      <!-- 操作ボタン -->
       <div class="button-container">
         <button class="restart-button" @click="handleRestart">ゲームをリセット</button>
         <button class="menu-button" @click="returnToMenu">メニューに戻る</button>
@@ -68,20 +79,47 @@
 </template>
 
 <script setup>
+/**
+ * オセロゲームのメインボード画面コンポーネント
+ * 盤面表示、駒の配置、ゲーム状態の表示を担当
+ */
 import { onMounted, toRef } from "vue";
 import { useGameBoard } from "@/composables/useGameBoard";
 import ColorSelection from "@/components/ColorSelection.vue";
 
-/* ────────── props / emits ────────── */
+/**
+ * プロパティ定義
+ */
 const props = defineProps({
-  gameMode: { type: String, default: "local" },
-  playerColor: { type: String, default: null },
+  /**
+   * ゲームモード
+   * @type {string}
+   */
+  gameMode: {
+    type: String,
+    default: "local"
+  },
+
+  /**
+   * プレイヤーの色
+   * @type {string|null}
+   */
+  playerColor: {
+    type: String,
+    default: null
+  },
 });
+
+/**
+ * イベント定義
+ */
 const emit = defineEmits(["update:playerColor", "return-to-menu"]);
 
-/* ────────── useGameBoard から取得 ────────── */
+/**
+ * useGameBoardコンポジションから状態と操作を取得
+ */
 const {
-  /* state & UI */
+  // 状態
   showHints,
   showColorSelection,
   playerColorInGame,
@@ -96,7 +134,7 @@ const {
   passPlayerLabel,
   isResetting,
 
-  /* helpers */
+  // ヘルパー関数
   isValidMove,
   hasPiece,
   pieceClasses,
@@ -106,23 +144,32 @@ const {
   getFrontPieceClasses,
   getBackPieceClasses,
 
-  /* actions */
+  // アクション
   initializeGame,
   handleCellClick,
   handleRestart,
   handleColorSelected,
 } = useGameBoard(props.gameMode, toRef(props, "playerColor"));
 
-/* ────────── local handlers ────────── */
+/**
+ * 色選択時の処理
+ * @param {string} color 選択された色
+ */
 async function onColorSelected(color) {
   await handleColorSelected(color);
   emit("update:playerColor", color);
 }
+
+/**
+ * メニューに戻る処理
+ */
 function returnToMenu() {
   emit("return-to-menu");
 }
 
-/* ────────── lifecycle ────────── */
+/**
+ * コンポーネントマウント時の初期化
+ */
 onMounted(initializeGame);
 </script>
 

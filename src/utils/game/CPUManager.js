@@ -1,12 +1,18 @@
+/**
+ * src/utils/game/CPUManager.js
+ * CPUプレイヤーの生成と管理を担当するクラス
+ */
 import { RandomCPU } from '../cpu/RandomCPU';
 import { AlphaBetaCPU } from '../cpu/AlphaBetaCPU';
 import { ReinforcementCPU } from '../cpu/ReinforcementCPU';
 
 /**
  * CPUプレイヤーを管理するクラス
+ * ゲームモードに応じた適切なCPUインスタンスを生成し、思考タイミングを制御する
  */
 export class CPUManager {
   /**
+   * CPUマネージャーを初期化
    * @param {BitBoard} bitBoard - ビットボード
    * @param {string} gameMode - ゲームモード（"cpu-weak", "cpu-normal", "cpu-strong"）
    * @param {string} playerColor - プレイヤーの色 ("black" または "white")
@@ -19,12 +25,14 @@ export class CPUManager {
   }
 
   /**
-   * CPUインスタンスを作成
+   * ゲームモードに応じたCPUインスタンスを作成
    * @returns {BaseCPU} CPUインスタンス
    * @private
    */
   createCPU() {
-    // CPUはプレイヤーとは逆の色となる
+    /**
+     * CPUはプレイヤーとは逆の色となる
+     */
     const cpuColor = this.playerColor === "black" ? "white" : "black";
 
     switch (this.gameMode) {
@@ -40,7 +48,8 @@ export class CPUManager {
   }
 
   /**
-   * CPUの手を選択
+   * CPUの手を選択する
+   * 思考時間の演出を含む
    * @returns {Promise<{row: number, col: number}>} 選択された手の座標
    */
   async selectMove() {
@@ -48,13 +57,15 @@ export class CPUManager {
       return null;
     }
 
-    // 思考時間を演出するための遅延
+    /**
+     * 思考時間を演出するための遅延
+     */
     await new Promise(resolve => setTimeout(resolve, 1000));
     return this.cpu.selectMove();
   }
 
   /**
-   * CPUの色を更新（プレイヤーの色が変更された場合）
+   * プレイヤーの色が変更された場合にCPUの色を更新
    * @param {string} playerColor - 新しいプレイヤーの色
    */
   updatePlayerColor(playerColor) {

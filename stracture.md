@@ -46,10 +46,16 @@
 # 各ファイルの関数と機能
 
 ## Rust（lib.rs）
-- `gen_legal_moves`: 全方向の合法手計算
-- `gen_flip_groups`: 反転グループ（index 配列）生成
-- `apply_move`: 着手適用
-- `popcnt64`: ビットカウント
+- `init_panic_hook()`: パニック時にブラウザコンソールにエラーを表示するためのフック設定
+- `shift(x, d)`: ビットシフト関数（正: 左シフト, 負: 右シフト）
+- `kogge_stone_flips(mask, p, o, idx)`: １方向の反転列計算 (Kogge-Stone法)
+- `compute_flip_mask(p, o, pos)`: ８方向すべての反転マスクを集計
+- `gen_legal_moves(p, o)`: 合法手ビットボード生成
+- `gen_flip_bitboards(p, o, pos)`: 方向別「反転ビットマスク」を返す（旧API）
+- `gen_flip_groups(p, o, pos)`: 方向別「反転 index 配列」を返す
+- `apply_move(p, o, pos)`: 着手適用（反転も含めた次盤面を返す）
+- `popcnt64(x)`: 石数 (スコア) を数える
+- `has_moves(p, o)`: 合法手が存在するか判定
 
 ## Wasm ローダー（wasmLoader.js）
 - `wasmReady`: Wasm モジュールをフェッチ＆初期化するためのPromise
@@ -70,7 +76,9 @@
 - `hasValidMoves(player)`: 合法手があるかどうかを判定
 
 ### bitView.js
-- `groupsToRowCols(groups)`: ビットインデックスを{row,col}に変換するヘルパー関数
+- `toRowCol(idx)`: ビットボードのインデックスを行列座標に変換
+- `indicesToRowCols(idxs)`: インデックス配列を行列座標配列に変換
+- `groupsToRowCols(groups)`: 反転グループ配列を行列座標グループ配列に変換
 
 ## ゲーム進行／アニメ管理（utils/game）
 
@@ -87,11 +95,23 @@
 - `_finishGame()`: ゲーム終了処理
 - `reset(newColor)`: ゲームのリセット
 
+### ViewBoard.js
+- `constructor()`: ViewBoardの初期化
+- `syncFromBitBoard(bitBoard)`: BitBoardから初期状態を同期
+- `startFlipping(row, col, toColor)`: 駒の反転アニメーションを開始
+- `completeFlipping(row, col)`: 駒の反転アニメーションを完了
+- `placePiece(row, col, color)`: 新しい駒を配置
+- `getCell(row, col)`: セルの状態を取得
+- `getOwner(row, col)`: セルの表面の色を取得
+- `isFlipping(row, col)`: セルが反転中かどうかを判定
+- `reset()`: ボードの状態をリセット
+
 ### AnimationManager.js
-- 反転アニメ用タイミング／エフェクト管理
+- `constructor()`: アニメーションマネージャーの初期化
 - `setLastPlacedPiece(row, col)`: 最後に置かれた駒の位置を設定
 - `startFlippingAnimation(flipGroups, fromColor, toColor, callback)`: 反転アニメーションの開始
 - `syncViewBoard(bitBoard)`: ViewBoardとビットボードの同期
+- `isPieceFlipping(row, col)`: 駒が反転中かどうかを判定
 - `getCellState(row, col)`: セルの状態を取得
 - `reset()`: アニメーション状態のリセット
 
@@ -163,15 +183,55 @@
 
 #### GameBoard.vue
 - テンプレート: 盤面、プレイヤー情報、ゲーム情報の表示
+- `props`: gameMode, playerColor
+- `emits`: update:playerColor, return-to-menu
 - `onColorSelected(color)`: 色選択ハンドラ
 - `returnToMenu()`: メニューに戻るハンドラ
+- `initializeGame()`: コンポーネントマウント時の初期化
 
 #### ModeSelection.vue
-- ゲームモード選択画面の表示と処理
+- テンプレート: ゲームモード選択、色選択、ゲーム開始ボタン
+- `emits`: mode-selected
+- `selectedMode`: 選択されたゲームモード（ref）
+- `playerColor`: 選択されたプレイヤーの色（ref）
+- `isCpuMode`: CPU対戦モードかどうか（computed）
+- `isValidSelection`: 有効な選択がされているかどうか（computed）
+- `selectMode(modeId)`: モード選択時の処理
+- `selectColor(color)`: 色選択時の処理
+- `startGame()`: ゲーム開始時の処理
 
 #### ColorSelection.vue
-- CPU対戦時の色選択ダイアログ
+- テンプレート: 黒（先攻）と白（後攻）の選択ボタン
+- `props`: selectedColor
+- `emits`: color-selected
 
 #### App.vue
 - ルートコンポーネント
 - モード選択とゲーム画面の切り替え制御
+- `currentMode`: 現在のモード（ref）
+- `selectedGameMode`: 選択されたゲームモード（ref）
+- `playerColor`: プレイヤーの色（ref）
+- `onModeSelected({mode, playerColor})`: モード選択時の処理
+- `returnToModeSelection()`: モード選択画面に戻る処理
+
+### CSS ファイル
+
+#### GameBoard.css
+- `:root`: カスタムプロパティ（CSS変数）定義
+- レイアウトと共通スタイル
+- プレイヤー情報のスタイル
+- ボードと駒のスタイル
+- 駒の反転アニメーション
+- ゲーム情報とボタンのスタイル
+- レスポンシブ対応
+
+#### ColorSelection.css
+- 色選択ダイアログのスタイル
+- 色選択ボタンのスタイル
+- 駒の表示スタイル
+
+#### ModeSelection.css
+- モード選択画面のスタイル
+- モードオプションのスタイル
+- ゲーム開始ボタンのスタイル
+- レスポンシブ対応
