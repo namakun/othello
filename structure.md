@@ -1,8 +1,9 @@
+```
 /crates
 └─ reversi
    └─ src
       └─ lib.rs                # ── Rust 製ビットボードロジックの実装 (WASM 出力)
-      
+
 /src
 ├─ utils
 │  ├─ wasmLoader.js           # ── Wasm モジュールの動的 import & 初期化
@@ -42,6 +43,8 @@
 │     └─ GameBoard.css        # ―― GameBoard 用スタイル＋共通変数
 │
 └─ App.vue                    # ── ルートコンポーネント (ModeSelection ⇔ GameBoard 切替)
+
+```
 
 # 各ファイルの関数と機能
 
