@@ -81,7 +81,7 @@ selectMove() {
   if (empt<=10) baseDepth = empt;
 
   // 静的並べ替え
-  moves.sort((a,b)=>this.getMoveSortKey(b)-this.getMoveSortKey(a));
+  moves.sort((a,b)=>this.getMoveSortKey(b,this.bitBoard)-this.getMoveSortKey(a,this.bitBoard));
 
   const start = Date.now();
   let bestMove = moves[0], bestScore=-Infinity;
@@ -154,7 +154,7 @@ alphaBeta(board, depth, alpha, beta, maximizing) {
     const bKey = `${b.row},${b.col}`;
     const ah = AlphaBetaCPU.historyTable.get(aKey) || 0;
     const bh = AlphaBetaCPU.historyTable.get(bKey) || 0;
-    return (bh-ah)+(this.getMoveSortKey(b)-this.getMoveSortKey(a));
+    return (bh-ah)+(this.getMoveSortKey(b, board)-this.getMoveSortKey(a, board));
   });
 
   let bestVal = maximizing ? -Infinity : Infinity;
@@ -213,7 +213,7 @@ evaluateBoard(bd){
   }
 
   s+=(my-op)*this.getPieceWeight(tot);
-  const cW = tot<30?AlphaBetaCPU.W.CORNER*0.2
+  const cW = tot<30?AlphaBetaCPU.W.CORNER*0.5
                    :tot<40?AlphaBetaCPU.W.CORNER*(0.2+0.8*(tot-30)/10)
                    :AlphaBetaCPU.W.CORNER;
   s+=this.evaluateCorners(bd)*cW;
@@ -340,8 +340,8 @@ evaluateBoard(bd){
       const cy = y === 1 ? 0 : 7;
       const cx = x === 1 ? 0 : 7;
       if (b.getPiece(cy,cx) !== null) continue; // 角埋まっていれば安全
-      if (p === this.color)        r += 1;
-      else if (p === this.oppColor) r -= 1;
+      if (p === this.color)        r += 3;
+      else if (p === this.oppColor) r -= 3;
     }
     return r; // W.X_TRAP が負なので自分の X は大減点
   }
@@ -505,9 +505,9 @@ evaluateBoard(bd){
    * @param {{row: number, col: number}} mv 手の座標
    * @returns {number} ソートキー
    */
-  getMoveSortKey(mv) {
+  getMoveSortKey(mv, board = this.bitBoard) {
     // 総石数を取得（ゲームフェーズ判定用）
-    const totalPieces = this.bitBoard.score().black + this.bitBoard.score().white;
+    const totalPieces = board.score().black + board.score().white;
 
     // ゲームフェーズの判定（序盤、移行期、中盤以降）
     const isEarlyGame = totalPieces < 30;  // 序盤を30手未満に拡張
@@ -516,7 +516,7 @@ evaluateBoard(bd){
     // 角の評価（フェーズに応じて調整）
     const corner = (mv.row===0||mv.row===7)&&(mv.col===0||mv.col===7);
     if (corner) {
-      if (isEarlyGame) return -5000;  // 序盤は角を避ける
+      if (isEarlyGame) return 8000; // 序盤でも角は最優先
       if (isTransitionPhase) {
         // 移行期は徐々に角の評価を上げる
         const transitionFactor = (totalPieces - 30) / 10; // 0.0～1.0
