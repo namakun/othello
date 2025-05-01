@@ -1,342 +1,248 @@
 /**
  * src/utils/cpu/AlphaBetaCPU.js
  * α-β剪定アルゴリズムを使用した CPU AI
- * ─ フェーズ別永続キャッシュ (LRU) ＋ 角罠対策・X/C 深掘り ─
  */
 import { BaseCPU } from "./BaseCPU";
 
 export class AlphaBetaCPU extends BaseCPU {
-  /*───────────────────────────────────────────────*
-   *  探索パラメータ                               *
-   *───────────────────────────────────────────────*/
-  static BASE_DEPTH          = 5;   // 通常の読み深さを5に増加
-  static ENDGAME_DEPTH_BONUS = 3;   // 終盤ボーナスを3に増加
-  static TIME_LIMIT_MS       = 1000; // 思考時間制限（ミリ秒）
+/*──────────────── 探索パラメータ ────────────────*/
+static BASE_DEPTH          = 5;
+static ENDGAME_DEPTH_BONUS = 3;
+static TIME_LIMIT_MS       = 1800;      // 1.8 秒
+static DEPTH_ADJUSTMENTS = {
+  CORNER   : 2,
+  EDGE     : 1,   // ← 0.5ply を整数に
+  X_SQUARE : 2,
+  C_SQUARE : 2
+};
 
-  // 盤上座標ごとの追加深さ（プライ数）
-  static DEPTH_ADJUSTMENTS = {
-    CORNER   : 2,
-    EDGE     : 0.5,
-    X_SQUARE : 2,   // X マスを必ず +2 深掘り
-    C_SQUARE : 2    // C マスも +2 深掘り
+/*──────────────── 評価重み ─────────────────────*/
+static PIECE_DIFF_W = { EARLY: 1, MID: 3, LATE_MID: 8, LATE: 30 };
+static W = {
+  CORNER              : 100,
+  CORNER_OPPORTUNITY  : 40,
+  X_TRAP              : -120,
+  CB_TRAP             : -80,
+  MOBILITY            : 12,   // 中盤の可動力を重視
+  STABILITY           : 5,
+  FRONTIER            : -3,
+  POTENTIAL_MOBILITY  : 1.5,
+  PARITY              : 25     // 追加
+};
+
+/*──────────────── TT & History ────────────────*/
+static evalCache = new Map(); // key → {depth, flag, val, age}
+/* flag: 0=EXACT, 1=LOWER (α cut), 2=UPPER (β cut) */
+static MAX_CACHE_SIZE = 400_000;
+static historyTable = new Map();
+static MAX_HISTORY = 4096;  // エントリ上限
+
+/*──────────────── Zobrist 初期化 ───────────────*/
+static initZobrist() {
+  if (this.ZOBRIST) return;
+  const r = () => Math.floor(Math.random()*2**32)>>>0;
+  this.ZOBRIST = {
+    piece: Array.from({length:2},()=>Array.from({length:64},()=>r())),
+    turn : r()
   };
+}
+static hashBoard(bd, turnBlack) {
+  this.initZobrist();
+  let h = 0;
+  for (let i=0;i<64;i++){
+    const mask = 1n<<BigInt(i);
+    if (bd.blackBoard & mask)      h ^= this.ZOBRIST.piece[0][i];
+    else if (bd.whiteBoard & mask) h ^= this.ZOBRIST.piece[1][i];
+  }
+  if (!turnBlack) h ^= this.ZOBRIST.turn;
+  return h>>>0;
+}
 
-  /*───────────────────────────────────────────────*
-   *  評価関数の重み                               *
-   *───────────────────────────────────────────────*/
-  // 駒差重み（進行度依存）
-  static PIECE_DIFF_W = { EARLY: 1, MID: 3, LATE_MID: 10, LATE: 50 };
+/** Zobrist ハッシュ (64bit) でキャッシュキーを生成 */
+getCacheKey(b, d, m) {
+  const h = (b.zobrist ^ (m ? 0n : 1n)) ^ BigInt(d);
+  return h;               // Map のキーに BigInt を直接使用
+}
 
-  // 固定重み
-  static W = {
-    CORNER              : 100,
-    CORNER_OPPORTUNITY  : 40,
-    X_TRAP              : -120,  // X罠の評価をさらに低く
-    CB_TRAP             : -80,   // C/B罠の評価も低く
-    MOBILITY            : 2,
-    STABILITY           : 5,
-    FRONTIER            : -3,
-    POTENTIAL_MOBILITY  : 1.5
-  };
+/*──────────────── 手の選択 ─────────────────────*/
+selectMove() {
+  const moves = this.getValidMoves();
+  if (!moves.length) return null;
 
-  /*───────────────────────────────────────────────*
-   *  永続キャッシュ (LRU方式)                     *
-   *───────────────────────────────────────────────*/
-  static evalCache      = new Map(); // key → val
-  static MAX_CACHE_SIZE = 500_000;   // エントリ上限
+  const total = this.bitBoard.score().black + this.bitBoard.score().white;
+  const empt  = 64 - total;
 
-  // ヒストリーヒューリスティック用テーブル
-  static historyTable   = new Map(); // "row,col" → score
+  // 初手のみランダム
+  if (total === 0) return moves[Math.random()*moves.length|0];
 
-  /*───────────────────────────────────────────────*
-   *  メイン: 手の選択                              *
-   *───────────────────────────────────────────────*/
-  selectMove() {
-    const moves = this.getValidMoves();
-    if (!moves.length) return null;
+  let baseDepth = AlphaBetaCPU.BASE_DEPTH;
+  if (total>=50) baseDepth+=AlphaBetaCPU.ENDGAME_DEPTH_BONUS;
+  if (moves.length<=6) baseDepth+=1;
+  if (empt<=10) baseDepth = empt;
 
-    /*── キャッシュサイズの確認 ──*/
-    const totalPieces = this.bitBoard.score().black + this.bitBoard.score().white;
+  // 静的並べ替え
+  moves.sort((a,b)=>this.getMoveSortKey(b)-this.getMoveSortKey(a));
 
-    // キャッシュサイズが上限に近づいたら、一部のエントリを削除
-    if (AlphaBetaCPU.evalCache.size > AlphaBetaCPU.MAX_CACHE_SIZE * 0.95) {
-      this.pruneCache(Math.floor(AlphaBetaCPU.MAX_CACHE_SIZE * 0.2)); // 20%のエントリを削除
+  const start = Date.now();
+  let bestMove = moves[0], bestScore=-Infinity;
+
+  let depth = 1;
+  while (true) {
+    if (Date.now() - start > AlphaBetaCPU.TIME_LIMIT_MS) break;
+    if (depth > baseDepth) break;
+    let curBest=-Infinity, curMove=null;
+
+    // PV move を先頭へ
+    if (bestMove){
+      const idx = moves.findIndex(m=>m.row===bestMove.row&&m.col===bestMove.col);
+      if (idx>0)[moves[0],moves[idx]]=[moves[idx],moves[0]];
     }
 
-    /*── 序盤ランダム性（初手・2手目）──*/
-    if (totalPieces <= 2) {
-      return moves[Math.floor(Math.random() * moves.length)];
+    for (const mv of moves){
+      const bd = this.cloneBoard(this.bitBoard);
+      bd.applyMove(mv.row,mv.col,this.color);
+
+      const d = Math.max(1, depth + Math.round(this.getDepthAdjustment(mv)));
+      let sc;
+      if (curMove===null){
+        sc = this.alphaBeta(bd,d-1,-Infinity,Infinity,false);
+      }else{
+        sc = this.alphaBeta(bd,d-1,-curBest,-curBest-1,false); // null-window
+        if (sc>curBest) sc = this.alphaBeta(bd,d-1,-Infinity,Infinity,false);
+      }
+
+      if (sc>curBest){curBest=sc;curMove=mv;}
+      if (Date.now()-start>=AlphaBetaCPU.TIME_LIMIT_MS) break;
     }
 
-    /*── 動的探索深さ ──*/
-    let maxDepth = AlphaBetaCPU.BASE_DEPTH;
-    if (totalPieces >= 50) maxDepth += AlphaBetaCPU.ENDGAME_DEPTH_BONUS;
-    if (moves.length <= 6) maxDepth += 1;      // 合法手が少ない局面はさらに深掘り
+    if (curMove){bestMove=curMove;bestScore=curBest;}
+    if (bestScore>=1_000_000) break;
+    depth++;
+  }
+  return bestMove;
+}
 
-    // 終盤（残り10手以内）は完全解析
-    const emptyCount = 64 - totalPieces;
-    if (emptyCount <= 10) {
-      maxDepth = emptyCount;
-    }
-
-    /*── 反復深化 ──*/
-    const startTime = Date.now();
-    let bestMove = moves[0];
-    let bestScore = -Infinity;
-
-    // 初期並べ替え（静的評価）
-    moves.sort((a, b) => this.getMoveSortKey(b) - this.getMoveSortKey(a));
-
-    // 反復深化（深さ1から順に探索）
-    for (let depth = 1; depth <= maxDepth; depth++) {
-      let currentBestScore = -Infinity;
-      let currentBestMove = null;
-
-      // 前回の反復で最善だった手を最初に探索
-      if (bestMove) {
-        const idx = moves.findIndex(m => m.row === bestMove.row && m.col === bestMove.col);
-        if (idx > 0) {
-          const temp = moves[0];
-          moves[0] = moves[idx];
-          moves[idx] = temp;
-        }
-      }
-
-      // 各手を評価
-      for (const mv of moves) {
-        const bd = this.cloneBoard();
-        bd.applyMove(mv.row, mv.col, this.color);
-
-        // 個別深さ調整
-        const d = Math.max(1, Math.floor(depth + this.getDepthAdjustment(mv)));
-
-        // Principal Variation Search
-        let sc;
-        if (currentBestMove === null) {
-          // 最初の手は通常のα-β探索
-          sc = this.alphaBeta(bd, d, -Infinity, Infinity, false);
-        } else {
-          // それ以外はNull Window Search
-          sc = this.alphaBeta(bd, d, currentBestScore, currentBestScore + 1, false);
-          if (sc > currentBestScore && sc < Infinity) {
-            // 再探索
-            sc = this.alphaBeta(bd, d, -Infinity, Infinity, false);
-          }
-        }
-
-        if (sc > currentBestScore) {
-          currentBestScore = sc;
-          currentBestMove = mv;
-
-          // ヒストリーテーブル更新
-          const key = `${mv.row},${mv.col}`;
-          const historyScore = AlphaBetaCPU.historyTable.get(key) || 0;
-          AlphaBetaCPU.historyTable.set(key, historyScore + (1 << depth));
-        }
-
-        // 時間制限チェック
-        if (Date.now() - startTime > AlphaBetaCPU.TIME_LIMIT_MS) {
-          break;
-        }
-      }
-
-      // この深さでの探索結果を保存
-      if (currentBestMove) {
-        bestMove = currentBestMove;
-        bestScore = currentBestScore;
-      }
-
-      // 時間制限チェック
-      if (Date.now() - startTime > AlphaBetaCPU.TIME_LIMIT_MS) {
-        break;
-      }
-
-      // 必勝手が見つかった場合は探索終了
-      if (bestScore >= 1000000) {
-        break;
-      }
-    }
-
-    return bestMove;
+/*──────────────── α-β + TT ─────────────────────*/
+alphaBeta(board, depth, alpha, beta, maximizing) {
+  const hash = AlphaBetaCPU.hashBoard(board, maximizing ? this.color==="black" : this.color!=="black");
+  const entry = AlphaBetaCPU.evalCache.get(hash);
+  if (entry && entry.depth>=depth){
+    if (entry.flag===0) return entry.val;
+    if (entry.flag===1 && entry.val<=alpha) return entry.val;
+    if (entry.flag===2 && entry.val>=beta ) return entry.val;
   }
 
-  /*───────────────────────────────────────────────*
-   *  α-β探索（LRU キャッシュ付き）                *
-   *───────────────────────────────────────────────*/
-  alphaBeta(board, depth, alpha, beta, maximizing) {
-    const key = this.getCacheKey(board, depth, maximizing);
-
-    // キャッシュヒット
-    const hit = AlphaBetaCPU.evalCache.get(key);
-    if (hit !== undefined) {
-      // LRU 更新
-      AlphaBetaCPU.evalCache.delete(key);
-      AlphaBetaCPU.evalCache.set(key, hit);
-      return hit;
-    }
-
-    // 終端条件
-    if (depth === 0 || this.isGameOver(board)) {
-      const v = this.evaluateBoard(board);
-      this.cachePut(key, v);
-      return v;
-    }
-
-    // 子ノード生成
-    const clr = maximizing ? this.color : this.oppColor;
-    const moves = this.getValidMoves(board, clr);
-
-    // パス処理
-    if (!moves.length) {
-      const v = this.alphaBeta(board, depth - 1, alpha, beta, !maximizing);
-      this.cachePut(key, v);
-      return v;
-    }
-
-    // 探索順ソート（ヒストリーヒューリスティック + 静的評価）
-    moves.sort((a, b) => {
-      // ヒストリースコア
-      const aKey = `${a.row},${a.col}`;
-      const bKey = `${b.row},${b.col}`;
-      const aHistory = AlphaBetaCPU.historyTable.get(aKey) || 0;
-      const bHistory = AlphaBetaCPU.historyTable.get(bKey) || 0;
-
-      // 静的評価
-      const aStatic = this.getMoveSortKey(a);
-      const bStatic = this.getMoveSortKey(b);
-
-      // 組み合わせた評価（ヒストリー + 静的評価）
-      return (bHistory * 10 + bStatic) - (aHistory * 10 + aStatic);
-    });
-
-    let best = maximizing ? -Infinity : Infinity;
-
-    for (const mv of moves) {
-      const nxt = this.cloneBoard(board);
-      nxt.applyMove(mv.row, mv.col, clr);
-
-      const v = this.alphaBeta(nxt, depth - 1, alpha, beta, !maximizing);
-
-      // 良い手を見つけたらヒストリーテーブルを更新
-      if ((maximizing && v > best) || (!maximizing && v < best)) {
-        const key = `${mv.row},${mv.col}`;
-        const historyScore = AlphaBetaCPU.historyTable.get(key) || 0;
-        AlphaBetaCPU.historyTable.set(key, historyScore + (1 << depth));
-      }
-
-      if (maximizing) {
-        best  = Math.max(best, v);
-        alpha = Math.max(alpha, v);
-      } else {
-        best  = Math.min(best, v);
-        beta  = Math.min(beta, v);
-      }
-      if (beta <= alpha) {
-        // βカット時もヒストリーテーブルを更新（良い手）
-        const key = `${mv.row},${mv.col}`;
-        const historyScore = AlphaBetaCPU.historyTable.get(key) || 0;
-        AlphaBetaCPU.historyTable.set(key, historyScore + (1 << depth));
-        break;
-      }
-    }
-
-    this.cachePut(key, best);
-    return best;
+  if (depth===0 || this.isGameOver(board)){
+    const v = this.evaluateBoard(board);
+    this.cachePut(hash, { depth, flag:0, val:v });
+    return v;
   }
 
-  /*───────────────────────────────────────────────*
-   *  LRU キャッシュ補助関数                       *
-   *───────────────────────────────────────────────*/
-  cachePut(key, val) {
-    const c = AlphaBetaCPU.evalCache;
-    c.set(key, val);
-    if (c.size > AlphaBetaCPU.MAX_CACHE_SIZE) {
-      // 最古エントリを削除 (Map は挿入順)
-      const oldestKey = c.keys().next().value;
-      c.delete(oldestKey);
+  const clr   = maximizing?this.color:this.oppColor;
+  const moves = this.getValidMoves(board,clr);
+
+  // パス処理
+  if (!moves.length) {
+    /* depth は減らさず手番だけ交代（偶奇合わせ） */
+    const v = this.alphaBeta(board, depth, alpha, beta, !maximizing);
+    this.cachePut(hash, { depth, flag:0, val:v });
+    return v;
+  }
+
+  moves.sort((a,b)=>{
+    const aKey = `${a.row},${a.col}`;
+    const bKey = `${b.row},${b.col}`;
+    const ah = AlphaBetaCPU.historyTable.get(aKey) || 0;
+    const bh = AlphaBetaCPU.historyTable.get(bKey) || 0;
+    return (bh-ah)+(this.getMoveSortKey(b)-this.getMoveSortKey(a));
+  });
+
+  let bestVal = maximizing ? -Infinity : Infinity;
+  const alphaOrig = alpha, betaOrig = beta;
+  for (const mv of moves){
+    const nxt = this.cloneBoard(board);
+    nxt.applyMove(mv.row,mv.col,clr);
+    const v = this.alphaBeta(nxt,depth-1,alpha,beta,!maximizing);
+
+    if (maximizing){
+      if (v>bestVal) bestVal=v;
+      if (v>alpha)   alpha=v;
+    }else{
+      if (v<bestVal) bestVal=v;
+      if (v<beta)    beta=v;
+    }
+    if (beta<=alpha){
+      const key = `${mv.row},${mv.col}`;
+      const historyScore = AlphaBetaCPU.historyTable.get(key) || 0;
+      AlphaBetaCPU.historyTable.set(key, Math.min(historyScore + (1 << depth), 1<<15));
+      if (AlphaBetaCPU.historyTable.size > AlphaBetaCPU.MAX_HISTORY) {
+        AlphaBetaCPU.historyTable.delete(AlphaBetaCPU.historyTable.keys().next().value);
+      }
+      break;
     }
   }
 
+  const flag = bestVal<=alphaOrig ? 1 : bestVal>=betaOrig ? 2 : 0;
+  this.cachePut(hash, { depth, flag, val:bestVal });
+  return bestVal;
+}
+
+cachePut(hash, entry){
+  const tt = AlphaBetaCPU.evalCache;
+  tt.set(hash, entry);
+  if (tt.size>AlphaBetaCPU.MAX_CACHE_SIZE){
+    tt.delete(tt.keys().next().value); // FIFO
+  }
+}
+
+/*──────────────── 評価関数 (変更箇所あり) ─────*/
+evaluateBoard(bd){
+  const {black,white}=bd.score();
+  const my=this.color==="black"?black:white;
+  const op=this.color==="black"?white:black;
+  const tot=my+op;
+
+  if (this.isGameOver(bd))
+    return my>op?1_000_000:my<op?-1_000_000:0;
+
+  let s=0;
+  if (tot<30)           s+=this.evaluateEarlyGame(bd)*3;
+  else if (tot<40){
+    const t=(tot-30)/10;
+    s+=this.evaluateEarlyGame(bd)*3*(1-t);
+  }
+
+  s+=(my-op)*this.getPieceWeight(tot);
+  const cW = tot<30?AlphaBetaCPU.W.CORNER*0.2
+                   :tot<40?AlphaBetaCPU.W.CORNER*(0.2+0.8*(tot-30)/10)
+                   :AlphaBetaCPU.W.CORNER;
+  s+=this.evaluateCorners(bd)*cW;
+  s+=this.evaluateCornerOpportunity(bd)*AlphaBetaCPU.W.CORNER_OPPORTUNITY;
+  s+=this.evaluateXTrap(bd)*AlphaBetaCPU.W.X_TRAP;
+  s+=this.evaluateCBTrap(bd)*AlphaBetaCPU.W.CB_TRAP;
+  if (tot<50) s+=this.evaluateMobility(bd)*AlphaBetaCPU.W.MOBILITY;
+  s+=this.evaluateStability(bd)*AlphaBetaCPU.W.STABILITY;
+  s+=this.evaluateFrontier(bd)*AlphaBetaCPU.W.FRONTIER;
+  s+=this.evaluatePotentialMobility(bd)*AlphaBetaCPU.W.POTENTIAL_MOBILITY;
+
+  /* 6. 最終偶奇パリティ (残り手数が偶=＋, 奇=－) */
+  if (64 - tot <= 12) {
+    const parity = (64 - tot) & 1 ? -1 : 1;
+    s += parity * 30;
+  }
+
+  // 注: 偶奇パリティは上記の「最終偶奇パリティ」で処理済み
+
+  if (tot >= 56) {                      // 残り 8 手以下のみ強化
+      s = s * 0.3 + (my - op) * 10;
+    }
+  return s;
+}
   /**
-   * キャッシュから指定数のエントリを削除
-   * @param {number} count 削除するエントリ数
+   * 序盤専用の評価関数
+   * @param {BitBoard} bd ビットボード
+   * @returns {number} 評価値
    */
-  pruneCache(count) {
-    const c = AlphaBetaCPU.evalCache;
-    const keys = Array.from(c.keys());
-    const deleteCount = Math.min(count, keys.length);
-
-    // 最も古いエントリから削除
-    for (let i = 0; i < deleteCount; i++) {
-      c.delete(keys[i]);
-    }
-  }
-
-  getCacheKey(b, d, m) {
-    return `${b.blackBoard.toString()},${b.whiteBoard.toString()},${d},${m}`;
-  }
-
-  /*───────────────────────────────────────────────*
-   *  評価関数                                     *
-   *───────────────────────────────────────────────*/
-  evaluateBoard(bd) {
-    const { black, white } = bd.score();
-    const my  = this.color === "black" ? black : white;
-    const opp = this.color === "black" ? white : black;
-    const tot = my + opp;
-    let s = 0;
-
-    // 終局時は実際のスコアを返す（完全解析）
-    if (this.isGameOver(bd)) {
-      return my > opp ? 1000000 : my < opp ? -1000000 : 0;
-    }
-
-    // 序盤（30手未満）は中央配置を重視
-    if (tot < 30) {
-      s += this.evaluateEarlyGame(bd) * 3; // 序盤評価の重みを増加
-    }
-    // 移行期（30-40手）は徐々に通常評価に移行
-    else if (tot < 40) {
-      const transitionFactor = (tot - 30) / 10; // 0.0～1.0
-      s += this.evaluateEarlyGame(bd) * 3 * (1 - transitionFactor);
-    }
-
-    /* 1. 駒差 */
-    s += (my - opp) * this.getPieceWeight(tot);
-
-    /* 2. 角関連 */
-    const cornerWeight = tot < 30 ?
-                        AlphaBetaCPU.W.CORNER * 0.2 : // 序盤は角の重みを下げる
-                        tot < 40 ?
-                        AlphaBetaCPU.W.CORNER * (0.2 + 0.8 * (tot - 30) / 10) : // 移行期は徐々に上げる
-                        AlphaBetaCPU.W.CORNER;
-
-    s += this.evaluateCorners(bd) * cornerWeight;
-    s += this.evaluateCornerOpportunity(bd) * AlphaBetaCPU.W.CORNER_OPPORTUNITY;
-
-    /* 3. 罠 (X / C/B) */
-    s += this.evaluateXTrap(bd)             * AlphaBetaCPU.W.X_TRAP;
-    s += this.evaluateCBTrap(bd)            * AlphaBetaCPU.W.CB_TRAP;
-
-    /* 4. モビリティ（終盤は無視） */
-    if (tot < 50) {
-      s += this.evaluateMobility(bd)        * AlphaBetaCPU.W.MOBILITY;
-    }
-
-    /* 5. 安定石 + フロンティア + 潜在モビリティ */
-    s += this.evaluateStability(bd)         * AlphaBetaCPU.W.STABILITY;
-    s += this.evaluateFrontier(bd)          * AlphaBetaCPU.W.FRONTIER;
-    s += this.evaluatePotentialMobility(bd) * AlphaBetaCPU.W.POTENTIAL_MOBILITY;
-
-    // 終盤に近づくほど駒差を重視
-    if (tot >= 50) {
-      s = s * 0.2 + (my - opp) * 5 * (tot - 49);
-    }
-
-    return s;
-  }
-
-  /** 序盤専用の評価関数 */
   evaluateEarlyGame(bd) {
     let score = 0;
 
@@ -370,16 +276,24 @@ export class AlphaBetaCPU extends BaseCPU {
     return score;
   }
 
-  /*───────────────────────────────────────────────*
-   *  評価関数：各項目                             *
-   *───────────────────────────────────────────────*/
-  /** 駒差重み */
+  /**
+   * 評価関数：各項目
+   */
+  /**
+   * 駒差重み
+   * @param {number} t 総石数
+   * @returns {number} 重み
+   */
   getPieceWeight(t) {
     const w = AlphaBetaCPU.PIECE_DIFF_W;
     return t >= 54 ? w.LATE : t >= 40 ? w.LATE_MID : t >= 20 ? w.MID : w.EARLY;
   }
 
-  /** 角保有数（自 +1 / 相手 -2）*/
+  /**
+   * 角保有数（自 +1 / 相手 -2）
+   * @param {BitBoard} b ビットボード
+   * @returns {number} 評価値
+   */
   evaluateCorners(b) {
     const cs = [[0,0],[0,7],[7,0],[7,7]];
     let v = 0;
@@ -391,18 +305,32 @@ export class AlphaBetaCPU extends BaseCPU {
     return v;
   }
 
-  /** 角を「次に取れる手」数差 */
+  /**
+   * 角を「次に取れる手」数差
+   * @param {BitBoard} b ビットボード
+   * @returns {number} 評価値
+   */
   evaluateCornerOpportunity(b) {
     return this.cornerCnt(b,this.color) - this.cornerCnt(b,this.oppColor);
   }
 
+  /**
+   * 角を取れる手の数を計算
+   * @param {BitBoard} b ビットボード
+   * @param {string} clr 色
+   * @returns {number} 角を取れる手の数
+   */
   cornerCnt(b, clr) {
     return this.getValidMoves(b,clr)
       .filter(({row,col}) => (row===0||row===7) && (col===0||col===7))
       .length;
   }
 
-  /** X マス罠（角が空→自分の X →減点）*/
+  /**
+   * X マス罠（角が空→自分の X →減点）
+   * @param {BitBoard} b ビットボード
+   * @returns {number} 評価値
+   */
   evaluateXTrap(b) {
     const xs = [[1,1],[1,6],[6,1],[6,6]];
     let r = 0;
@@ -418,7 +346,11 @@ export class AlphaBetaCPU extends BaseCPU {
     return r; // W.X_TRAP が負なので自分の X は大減点
   }
 
-  /** C/B マス罠 */
+  /**
+   * C/B マス罠
+   * @param {BitBoard} b ビットボード
+   * @returns {number} 評価値
+   */
   evaluateCBTrap(b) {
     const danger = [
       /* C */ [0,1],[1,0],[0,6],[1,7],[6,0],[7,1],[6,7],[7,6],
@@ -437,13 +369,21 @@ export class AlphaBetaCPU extends BaseCPU {
     return r; // W.CB_TRAP が負
   }
 
-  /** モビリティ差 */
+  /**
+   * モビリティ差
+   * @param {BitBoard} b ビットボード
+   * @returns {number} 評価値
+   */
   evaluateMobility(b) {
     return this.getValidMoves(b,this.color).length -
            this.getValidMoves(b,this.oppColor).length;
   }
 
-  /** 安定石評価（改良版）*/
+  /**
+   * 安定石評価（改良版）
+   * @param {BitBoard} b ビットボード
+   * @returns {number} 評価値
+   */
   evaluateStability(b) {
     // 角の安定石
     const cs = [[0,0],[0,7],[7,0],[7,7]];
@@ -506,7 +446,11 @@ export class AlphaBetaCPU extends BaseCPU {
     return my - op;
   }
 
-  /** フロンティア石差 */
+  /**
+   * フロンティア石差
+   * @param {BitBoard} b ビットボード
+   * @returns {number} 評価値
+   */
   evaluateFrontier(b) {
     const d = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
     let myF = 0, opF = 0;
@@ -527,7 +471,11 @@ export class AlphaBetaCPU extends BaseCPU {
     return myF - opF;
   }
 
-  /** 潜在モビリティ差 */
+  /**
+   * 潜在モビリティ差
+   * @param {BitBoard} b ビットボード
+   * @returns {number} 評価値
+   */
   evaluatePotentialMobility(b) {
     const d = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
     let my = 0, op = 0;
@@ -549,9 +497,14 @@ export class AlphaBetaCPU extends BaseCPU {
     return my - op;
   }
 
-  /*───────────────────────────────────────────────*
-   *  手順並べ替え & 深さ調整                      *
-   *───────────────────────────────────────────────*/
+  /**
+   * 手順並べ替え & 深さ調整
+   */
+  /**
+   * 手の並べ替えキーを取得
+   * @param {{row: number, col: number}} mv 手の座標
+   * @returns {number} ソートキー
+   */
   getMoveSortKey(mv) {
     // 総石数を取得（ゲームフェーズ判定用）
     const totalPieces = this.bitBoard.score().black + this.bitBoard.score().white;
@@ -580,6 +533,12 @@ export class AlphaBetaCPU extends BaseCPU {
     return historyScore * 10 + this.getMoveValue(mv, totalPieces);
   }
 
+  /**
+   * 手の評価値を取得
+   * @param {{row: number, col: number}} param0 手の座標
+   * @param {number} totalPieces 総石数
+   * @returns {number} 評価値
+   */
   getMoveValue({ row:r, col:c }, totalPieces) {
     // ゲームフェーズの判定
     const isEarlyGame = totalPieces < 30;
@@ -644,6 +603,11 @@ export class AlphaBetaCPU extends BaseCPU {
     return 0;
   }
 
+  /**
+   * 深さ調整値を取得
+   * @param {{row: number, col: number}} mv 手の座標
+   * @returns {number} 深さ調整値
+   */
   getDepthAdjustment(mv) {
     const { row:r, col:c } = mv;
     if ((r===0||r===7)&&(c===0||c===7))
