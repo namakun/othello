@@ -74,28 +74,6 @@ export class BaseCPU {
   }
 
   /**
-   * 基本評価関数（駒差＋角の評価）
-   * @param {BitBoard} board ビットボード
-   * @returns {number} 評価値（大きいほどCPUに有利）
-   */
-  evaluateBoard(board) {
-    const { black, white } = board.score();
-    const my = this.color === "black" ? black : white;
-    const opp = this.color === "black" ? white : black;
-    let evalPt = my - opp;
-
-    // 角の評価（角を取ると25ポイント）
-    [["black", 0, 0], ["white", 0, 7], ["white", 7, 0], ["white", 7, 7]].forEach(
-      ([, r, c]) => {
-        const p = board.getPiece(r, c);
-        if (p === this.color) evalPt += 25;
-        else if (p === this.oppColor) evalPt -= 25;
-      }
-    );
-    return evalPt;
-  }
-
-  /**
    * 手を選択する（子クラスで実装）
    * @returns {{row: number, col: number}} 選択された手の座標
    */
